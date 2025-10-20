@@ -1,9 +1,27 @@
 import { useState, useEffect } from 'react';
 import type { Match, Standing } from './types';
 import { generateAllMatches, calculateStandings } from './types';
-
-// API endpoints
-const API_BASE = '/api';
+// We'll dynamically import the Supabase client at runtime so missing package or envs
+// don't break the whole app. _supabaseClient caches the client or `null` if unavailable.
+let _supabaseClient: any | null | undefined = undefined;
+async function getSupabaseClient() {
+  if (_supabaseClient !== undefined) return _supabaseClient;
+  try {
+    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+    const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+    if (!url || !key) {
+      _supabaseClient = null;
+      return null;
+    }
+    const mod = await import('@supabase/supabase-js');
+    _supabaseClient = mod.createClient(url, key);
+    return _supabaseClient;
+  } catch (err) {
+    console.warn('Could not initialize Supabase client:', err);
+    _supabaseClient = null;
+    return null;
+  }
+}
 
 // Simple state management for the tournament app
 class TournamentStore {
@@ -23,12 +41,28 @@ class TournamentStore {
   private async loadData() {
     try {
       this.isLoading = true;
-      const response = await fetch(`${API_BASE}/matches`);
-      if (response.ok) {
-        const data = await response.json();
-        this.matches = data.matches;
+      // Try reading from Supabase table 'tournament' (singleton row with id='singleton')
+      const supabase = await getSupabaseClient();
+      if (supabase) {
+        const { data, error } = await supabase
+          .from('tournament')
+          .select('payload')
+          .eq('id', 'singleton')
+          .single();
+
+        if (error) {
+          console.warn('Supabase read failed, falling back to localStorage:', (error as any).message || error);
+          this.loadFromLocalStorage();
+        } else if (data && data.payload && Array.isArray(data.payload) && data.payload.length > 0) {
+          // Payload exists and has matches
+          this.matches = data.payload as Match[];
+        } else {
+          // No row yet or payload empty; generate defaults and save
+          this.matches = generateAllMatches();
+          await this.saveData();
+        }
       } else {
-        // Fallback to localStorage if API fails
+        // Supabase not configured or unavailable — use localStorage fallback
         this.loadFromLocalStorage();
       }
     } catch (error) {
@@ -58,18 +92,17 @@ class TournamentStore {
     try {
       // Save to localStorage as backup
       this.saveToLocalStorage();
-      
-      // Also try to save to API
-      const response = await fetch(`${API_BASE}/matches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ matches: this.matches }),
-      });
-      
-      if (!response.ok) {
-        console.warn('Failed to save to API, data saved locally');
+      // Upsert to Supabase (singleton id) if available
+      const supabase = await getSupabaseClient();
+      if (supabase) {
+        const { error } = await supabase.from('tournament').upsert({
+          id: 'singleton',
+          payload: this.matches,
+        });
+
+        if (error) {
+          console.warn('Failed to save to Supabase, data saved locally:', (error as any).message || error);
+        }
       }
     } catch (error) {
       console.warn('Failed to save to API, data saved locally:', error);
@@ -109,22 +142,17 @@ class TournamentStore {
 
   async updateMatchAPI(matchId: string, scores: Match['scores']) {
     try {
-      const response = await fetch(`${API_BASE}/matches`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ matchId, scores }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        this.matches = data.matches;
-        this.saveToLocalStorage(); // Backup to localStorage
+      // Update local matches and persist
+      const matchIndex = this.matches.findIndex(m => m.id === matchId);
+      if (matchIndex !== -1) {
+        this.matches[matchIndex] = {
+          ...this.matches[matchIndex],
+          scores
+        };
+        await this.saveData();
         this.notify();
       } else {
-        // Fallback to local update
-        this.updateMatch(matchId, scores);
+        console.warn('Match not found locally when updating via Supabase fallback');
       }
     } catch (error) {
       console.error('Failed to update via API, using local update:', error);
@@ -134,24 +162,10 @@ class TournamentStore {
 
   async resetTournament() {
     try {
-      const response = await fetch(`${API_BASE}/reset`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        this.matches = data.matches;
-        this.saveToLocalStorage(); // Backup to localStorage
-        this.notify();
-      } else {
-        // Fallback to local reset
-        this.matches = generateAllMatches();
-        this.saveData();
-        this.notify();
-      }
+      // Reset to generated default and persist to Supabase
+      this.matches = generateAllMatches();
+      await this.saveData();
+      this.notify();
     } catch (error) {
       console.error('Failed to reset via API, using local reset:', error);
       this.matches = generateAllMatches();

@@ -28,7 +28,8 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
         width: '100%',
         maxWidth: '600px',
         maxHeight: '90vh',
-        overflow: 'auto'
+        overflow: 'auto',
+        boxSizing: 'border-box'
       }}>
         <div style={{
           display: 'flex',
@@ -64,16 +65,17 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
 
             if (!hasData) return null;
 
-            return (
+              return (
               <div key={category} style={{
-                display: 'grid',
-                gridTemplateColumns: '2fr 3fr 2fr',
+                display: 'flex',
+                flexDirection: 'row',
                 gap: '1rem',
                 alignItems: 'center',
                 padding: '0.75rem',
                 backgroundColor: '#f9fafb',
                 borderRadius: '6px',
-                fontSize: '0.875rem'
+                fontSize: '0.875rem',
+                flexWrap: 'wrap'
               }}>
                 {/* Column 1: Match Type */}
                 <div style={{ textAlign: 'left' }}>
@@ -83,7 +85,7 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
                 </div>
                 
                 {/* Column 2: Player Names */}
-                <div style={{ textAlign: 'center' }}>
+                <div style={{ textAlign: 'center', flex: '1 1 40%' }}>
                   <div style={{ color: '#6b7280' }}>
                     {isDoubles ? (
                       // Doubles format with 3 sub-columns: Team1 | vs | Team2
@@ -167,7 +169,9 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
                 <div style={{ 
                   textAlign: 'center',
                   fontWeight: '700',
-                  fontSize: '1rem'
+                  fontSize: '1rem',
+                  minWidth: '64px',
+                  flex: '0 0 auto'
                 }}>
                   <span style={{ color: score.teamAScore > score.teamBScore ? '#059669' : '#6b7280' }}>
                     {score.teamAScore}

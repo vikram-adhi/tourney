@@ -494,20 +494,7 @@ function AppContent() {
           </button>
         </div>
 
-        {/* Data Persistence Info */}
-        {isAdmin && (
-          <div style={{
-            backgroundColor: '#dcfce7',
-            border: '1px solid #16a34a',
-            borderRadius: '6px',
-            padding: '0.75rem',
-            marginBottom: '1rem',
-            fontSize: '0.875rem'
-          }}>
-            <strong>✅ Persistent Storage:</strong> Tournament data is now saved to the server. 
-            Scores will persist across browser sessions and deployments.
-          </div>
-        )}
+        {/* Data Persistence Info removed — using Supabase for persistence; UI banner omitted */}
 
         {/* Tab Content */}
         {activeTab === 'standings' ? (
