@@ -118,4 +118,40 @@ table {
   /* allow name columns to shrink so they don't push score to next line */
   min-width: 0;
 }
+
+/* Desktop layout: show category, centered names, and score in one row */
+@media (min-width: 769px) {
+  .vm-category {
+    display: grid !important;
+    grid-template-columns: 180px 1fr 88px;
+    align-items: center;
+    gap: 1rem;
+    padding: 0.75rem !important;
+  }
+
+  .vm-category-title {
+    text-align: left;
+    padding-right: 0.5rem;
+  }
+
+  .vm-category-names {
+    text-align: center !important;
+    justify-self: center;
+    padding: 0 !important;
+  }
+
+  /* Center the grid cells that contain the players and the vs */
+  .vm-category-names [style*="display: grid"] {
+    justify-items: center;
+  }
+
+  .vm-vs {
+    white-space: nowrap;
+    justify-self: center;
+  }
+
+  .vm-score {
+    text-align: right !important;
+  }
+}
 /* Keep tables as tables on mobile — do not convert to cards */
