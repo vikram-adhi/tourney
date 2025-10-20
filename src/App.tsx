@@ -205,22 +205,69 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isViewing, setIsViewing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  const [expandedPools, setExpandedPools] = useState<{ [key: string]: boolean }>({
+    'Pool A': true,
+    'Pool B': false
+  });
   
   const poolAMatches = matches.filter(m => m.pool === 'A');
   const poolBMatches = matches.filter(m => m.pool === 'B');
 
-  const PoolMatches = ({ title, matches }: { title: string; matches: Match[] }) => (
-      <div style={{
-      backgroundColor: 'white',
-      padding: '0.5rem',
-      borderRadius: '6px',
-      boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
-    }}>
-      <h3 style={{ margin: '0 0 0.75rem 0', fontSize: '1.125rem', fontWeight: '600' }}>
-        {title}
-      </h3>
+  const PoolMatches = ({ title, matches }: { title: string; matches: Match[] }) => {
+    const isExpanded = expandedPools[title];
+    const toggleExpanded = () => {
+      setExpandedPools(prev => ({
+        ...prev,
+        [title]: !prev[title]
+      }));
+    };
 
-      <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+    return (
+      <div style={{
+        backgroundColor: 'white',
+        padding: '0.375rem',
+        borderRadius: '6px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div 
+          onClick={toggleExpanded}
+          style={{ 
+            display: 'flex', 
+            justifyContent: 'space-between', 
+            alignItems: 'center',
+            cursor: 'pointer',
+            margin: '0 0 0.375rem 0',
+            padding: '0.5rem 0.25rem',
+            minHeight: 'auto'
+          }}
+        >
+          <h3 style={{ 
+            margin: '0', 
+            fontSize: '0.9rem', 
+            fontWeight: '600',
+            lineHeight: '1',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            {title}
+          </h3>
+          <span style={{ 
+            fontSize: '0.75rem', 
+            color: '#6b7280',
+            transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 0.2s ease',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: '20px',
+            height: '20px'
+          }}>
+            ▶
+          </span>
+        </div>
+
+        {isExpanded && (
+          <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
         {matches.map((match) => {
           const matchPlayed = isMatchPlayed(match);
           let matchesWon = { teamA: 0, teamB: 0 };
@@ -239,26 +286,26 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
           }
 
           return (
-            <div key={match.id} className="match-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: '0.5rem', alignItems: 'center', padding: '0.75rem', background: 'white', borderRadius: '6px', border: '1px solid #f3f4f6' }}>
-              <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.95rem' }}>{match.teamA} vs {match.teamB}</div>
+            <div key={match.id} className="match-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: '0.375rem', alignItems: 'center', padding: '0.5rem', background: 'white', borderRadius: '4px', border: '1px solid #f3f4f6' }}>
+              <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>{match.teamA} vs {match.teamB}</div>
 
               <div className="match-col match-stats" style={{ textAlign: 'left' }}>
                 {matchPlayed ? (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.125rem' }}>
-                    <div style={{ fontSize: '0.875rem', fontWeight: '600' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: '600' }}>
                       Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>
                     </div>
-                    <div style={{ fontSize: '0.875rem', color: '#6b7280' }}>
+                    <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
                       Points: <span style={{ color: totalScores.teamA > totalScores.teamB ? '#059669' : '#6b7280' }}>{totalScores.teamA}</span> - <span style={{ color: totalScores.teamB > totalScores.teamA ? '#059669' : '#6b7280' }}>{totalScores.teamB}</span>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.875rem' }}>TBD</div>
+                  <div style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.8rem' }}>TBD</div>
                 )}
               </div>
 
               <div className="match-col match-actions" style={{ textAlign: 'right' }}>
-                <div style={{ display: 'flex', gap: '0.375rem', justifyContent: 'flex-end' }}>
+                <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
                   <button
                     onClick={() => {
                       setSelectedMatch(match);
@@ -268,10 +315,10 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
                       backgroundColor: '#6b7280',
                       color: 'white',
                       border: 'none',
-                      padding: '0.375rem 0.625rem',
+                      padding: '0.25rem 0.5rem',
                       borderRadius: '4px',
                       cursor: 'pointer',
-                      fontSize: '0.8rem'
+                      fontSize: '0.75rem'
                     }}
                   >
                     View
@@ -286,10 +333,10 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
                         backgroundColor: '#2563eb',
                         color: 'white',
                         border: 'none',
-                        padding: '0.375rem 0.625rem',
+                        padding: '0.25rem 0.5rem',
                         borderRadius: '4px',
                         cursor: 'pointer',
-                        fontSize: '0.8rem'
+                        fontSize: '0.75rem'
                       }}
                     >
                       Edit
@@ -300,13 +347,15 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
             </div>
           );
         })}
+          </div>
+        )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <>
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <PoolMatches title="Pool A Matches" matches={poolAMatches} />
         <PoolMatches title="Pool B Matches" matches={poolBMatches} />
       </div>
