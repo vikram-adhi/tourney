@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { promises as fs } from 'fs';
 import path from 'path';
-import type { Match, TeamName } from '../src/types';
-import { generateAllMatches } from '../src/types';
+import type { Match, Standing } from '../src/types.js';
+import { generateAllMatches, calculateStandings } from '../src/types.js';
 
 // Simple file-based storage for tournament data
 const DATA_FILE = '/tmp/tournament-data.json';
