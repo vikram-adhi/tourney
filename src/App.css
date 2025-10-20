@@ -135,7 +135,11 @@ table {
   }
 
   .vm-category-names {
-    text-align: center !important;
+    /* make the middle column a 3-column grid: team1 | vs | team2 */
+    display: grid !important;
+    grid-template-columns: 1fr auto 1fr !important;
+    align-items: center;
+    justify-items: center;
     justify-self: center;
     padding: 0 !important;
   }
@@ -150,8 +154,9 @@ table {
     justify-self: center;
   }
 
+  /* center the score column on desktop */
   .vm-score {
-    text-align: right !important;
+    text-align: center !important;
   }
 }
 /* Keep tables as tables on mobile — do not convert to cards */
