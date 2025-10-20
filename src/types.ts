@@ -65,6 +65,25 @@ export function isDoublesCategory(category: string): boolean {
   return category.includes("Doubles");
 }
 
+export function getCategoryAbbreviation(category: Category): string {
+  switch (category) {
+    case "Men's Singles 1":
+      return "MS";
+    case "Men's Singles 2":
+      return "RMS";
+    case "Men's Doubles 1":
+      return "MD";
+    case "Men's Doubles 2":
+      return "RMD";
+    case "Women's Singles":
+      return "WS";
+    case "Mixed Doubles":
+      return "XD";
+    default:
+      return category;
+  }
+}
+
 export function generatePoolMatches(teams: TeamName[], poolName: "A" | "B"): Match[] {
   const matches: Match[] = [];
   let matchNum = 1;

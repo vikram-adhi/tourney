@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { Match, CategoryScore } from '../types';
-import { CATEGORIES, TEAM_PLAYERS, isDoublesCategory } from '../types';
+import { CATEGORIES, TEAM_PLAYERS, isDoublesCategory, getCategoryAbbreviation } from '../types';
 
 interface EditMatchModalProps {
   match: Match;
@@ -103,7 +103,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                   marginBottom: '0.75rem',
                   fontSize: '0.9rem'
                 }}>
-                  {category}
+                  {getCategoryAbbreviation(category)}
                 </div>
 
                 {/* Player Selection and Scores */}

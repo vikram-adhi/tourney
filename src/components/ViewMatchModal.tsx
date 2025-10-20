@@ -1,5 +1,5 @@
 import type { Match } from '../types';
-import { CATEGORIES, isDoublesCategory } from '../types';
+import { CATEGORIES, isDoublesCategory, getCategoryAbbreviation } from '../types';
 
 interface ViewMatchModalProps {
   match: Match;
@@ -107,7 +107,7 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
                 >
                   {/* Category title */}
                   <div className="vm-category-title" style={{ textAlign: 'left', width: '100%' }}>
-                    <div style={{ fontWeight: 600, color: '#374151' }}>{category}</div>
+                    <div style={{ fontWeight: 600, color: '#374151' }}>{getCategoryAbbreviation(category)}</div>
                   </div>
 
                   {/* Body: names (left) and score (right) */}

@@ -74,7 +74,7 @@ table {
   /* Use same 3-column layout as desktop but with smaller fonts */
   .vm-category {
     display: grid !important;
-    grid-template-columns: 100px 1fr 60px !important;
+    grid-template-columns: 50px 1fr 60px !important;
     align-items: center !important;
     gap: 0.5rem !important;
     padding: 0.2rem 0.25rem !important;
@@ -202,7 +202,7 @@ table {
 @media (min-width: 769px) {
   .vm-category {
     display: grid !important;
-    grid-template-columns: 160px 1fr 100px !important;
+    grid-template-columns: 60px 1fr 80px !important;
     align-items: center !important;
     gap: 1rem !important;
     padding: 0.25rem 0.5rem !important;
