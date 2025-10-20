@@ -36,9 +36,86 @@ table {
   font-size: 0.9rem;
 }
 
-/* Responsive adjustments */
+/* Matches list styling */
+.matches-grid {
+  width: 100%;
+}
+
+.match-row {
+  width: 100%;
+}
+
 @media (max-width: 768px) {
-  .grid-responsive {
-    grid-template-columns: 1fr !important;
+  /* on medium screens reduce actions column */
+  .match-row {
+    grid-template-columns: 1fr 1fr 72px !important;
   }
 }
+
+@media (max-width: 480px) {
+  /* stack stats under teams on very small screens */
+  .match-row {
+    grid-template-columns: 1fr 88px !important;
+    grid-auto-rows: auto;
+  }
+
+  .match-col.match-stats {
+    grid-column: 1 / 2;
+    margin-top: 0.5rem;
+  }
+
+  .match-col.match-actions {
+    grid-column: 2 / 3;
+    text-align: right;
+  }
+}
+
+@media (max-width: 640px) {
+  /* Switch the body to a two-column grid: names | score */
+  .vm-category-body {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  /* Ensure name grid area stacks its internal rows cleanly */
+  .vm-category-names {
+    display: block;
+    text-align: center;
+  }
+
+  /* Keep vs element compact and non-wrapping inside the name area */
+  .vm-category-names .vm-vs {
+    white-space: nowrap;
+  }
+
+  /* Score stays vertically centered and never wraps */
+  .vm-score {
+    white-space: nowrap;
+  }
+}
+
+/* Ensure inner name elements center on mobile even if inline styles exist */
+@media (max-width: 640px) {
+  .vm-category-names,
+  .vm-category-names * {
+    text-align: center !important;
+  }
+
+  /* Center the grid cells inside name blocks as well */
+  .vm-category-names [style*="display: grid"] {
+    justify-items: center;
+  }
+}
+
+/* Grid helpers for name/VS/score blocks */
+.vm-category-body .vm-vs {
+  white-space: nowrap;
+}
+
+.vm-category-body [style*="display: grid"] > div {
+  /* allow name columns to shrink so they don't push score to next line */
+  min-width: 0;
+}
+/* Keep tables as tables on mobile — do not convert to cards */
