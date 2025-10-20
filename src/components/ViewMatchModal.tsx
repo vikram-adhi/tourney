@@ -69,8 +69,8 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
         </div>
 
         {/* Body (scrollable) */}
-        <div style={{ padding: '0.75rem 1rem', overflow: 'auto', flex: '1 1 auto' }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ padding: '0.5rem 1rem', overflow: 'auto', flex: '1 1 auto' }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
             {CATEGORIES.map((category, index) => {
               const raw = match.scores[index] ?? {
                 teamAScore: 0,
