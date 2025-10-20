@@ -11,6 +11,11 @@ class TournamentStore {
   private listeners: (() => void)[] = [];
   private isLoading = false;
 
+  // expose loading state so the value is actually read
+  get loading() {
+    return this.isLoading;
+  }
+
   constructor() {
     this.loadData();
   }
@@ -173,6 +178,7 @@ export function useTournamentStore() {
   return {
     matches: tournamentStore.getMatches(),
     standings: tournamentStore.getStandings(),
+    isLoading: tournamentStore.loading,
     updateMatch: (matchId: string, scores: Match['scores']) => 
       tournamentStore.updateMatchAPI(matchId, scores),
     resetTournament: () => tournamentStore.resetTournament()
