@@ -52,7 +52,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
       <div style={{
         backgroundColor: 'white',
         borderRadius: '6px',
-        padding: '1.25rem',
+        padding: '1rem',
         width: '100%',
         maxWidth: '700px',
         maxHeight: '90vh',
@@ -62,9 +62,9 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          marginBottom: '1rem',
+          marginBottom: '0.75rem',
           borderBottom: '1px solid #e5e7eb',
-          paddingBottom: '0.75rem'
+          paddingBottom: '0.5rem'
         }}>
           <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600' }}>
             Edit: {match.teamA} vs {match.teamB}
@@ -84,47 +84,48 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
           </button>
         </div>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
           {CATEGORIES.map((category, index) => {
             const score = scores[index];
             const isDoubles = isDoublesCategory(category);
 
             return (
               <div key={category} style={{
-                padding: '0.75rem',
-                backgroundColor: '#f9fafb',
-                borderRadius: '6px',
-                border: '1px solid #e5e7eb'
+                padding: '0.5rem 0.5rem',
+                backgroundColor: 'transparent',
+                borderRadius: '0',
+                border: 'none'
               }}>
                 {/* Category Header */}
                 <div style={{
                   fontWeight: '600',
                   color: '#374151',
-                  marginBottom: '0.75rem',
-                  fontSize: '0.9rem'
+                  fontSize: '0.75rem',
+                  marginBottom: '0.375rem'
                 }}>
                   {getCategoryAbbreviation(category)}
                 </div>
 
-                {/* Player Selection and Scores */}
+                {/* Vertical Layout: Team A */}
                 <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: '1fr auto 1fr',
-                  gap: '0.75rem',
-                  alignItems: 'center'
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginBottom: '0.125rem',
+                  gap: '0.5rem'
                 }}>
-                  {/* Team A Player */}
-                  <div>
+                  <div style={{ display: 'flex', gap: '0.25rem', flex: 1 }}>
                     <select
                       value={score.teamAPlayer1 || ''}
                       onChange={(e) => handleScoreChange(index, 'teamAPlayer1', e.target.value)}
                       style={{
-                        width: '100%',
-                        padding: '0.5rem',
+                        flex: 1,
+                        padding: '0.25rem',
                         border: '1px solid #d1d5db',
                         borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        backgroundColor: 'white'
+                        fontSize: '0.7rem',
+                        backgroundColor: 'white',
+                        textAlign: 'center'
                       }}
                     >
                       <option value="">Select Player</option>
@@ -135,84 +136,79 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       ))}
                     </select>
                     {isDoubles && (
-                      <select
-                        value={score.teamAPlayer2 || ''}
-                        onChange={(e) => handleScoreChange(index, 'teamAPlayer2', e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '4px',
-                          fontSize: '0.875rem',
-                          backgroundColor: 'white',
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        <option value="">Select Partner</option>
-                        {TEAM_PLAYERS[match.teamA]?.map((player) => (
-                          <option key={player} value={player}>
-                            {player}
-                          </option>
-                        ))}
-                      </select>
+                      <>
+                        <span style={{ alignSelf: 'center', fontSize: '0.7rem', color: '#6b7280' }}>/</span>
+                        <select
+                          value={score.teamAPlayer2 || ''}
+                          onChange={(e) => handleScoreChange(index, 'teamAPlayer2', e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '0.25rem',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            backgroundColor: 'white',
+                            textAlign: 'center'
+                          }}
+                        >
+                          <option value="">Select Partner</option>
+                          {TEAM_PLAYERS[match.teamA]?.map((player) => (
+                            <option key={player} value={player}>
+                              {player}
+                            </option>
+                          ))}
+                        </select>
+                      </>
                     )}
                   </div>
+                  <input
+                    type="number"
+                    value={score.teamAScore}
+                    onChange={(e) => handleScoreChange(index, 'teamAScore', e.target.value)}
+                    style={{
+                      width: '50px',
+                      padding: '0.25rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      textAlign: 'center',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                    min="0"
+                    max="30"
+                  />
+                </div>
 
-                  {/* Score Inputs */}
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.5rem',
-                    padding: '0.5rem',
-                    backgroundColor: 'white',
-                    borderRadius: '4px',
-                    border: '1px solid #d1d5db'
-                  }}>
-                    <input
-                      type="number"
-                      value={score.teamAScore}
-                      onChange={(e) => handleScoreChange(index, 'teamAScore', e.target.value)}
-                      style={{
-                        width: '50px',
-                        padding: '0.25rem',
-                        border: 'none',
-                        textAlign: 'center',
-                        fontSize: '1rem',
-                        fontWeight: '600'
-                      }}
-                      min="0"
-                      max="30"
-                    />
-                    <span style={{ fontWeight: '600', color: '#6b7280' }}>-</span>
-                    <input
-                      type="number"
-                      value={score.teamBScore}
-                      onChange={(e) => handleScoreChange(index, 'teamBScore', e.target.value)}
-                      style={{
-                        width: '50px',
-                        padding: '0.25rem',
-                        border: 'none',
-                        textAlign: 'center',
-                        fontSize: '1rem',
-                        fontWeight: '600'
-                      }}
-                      min="0"
-                      max="30"
-                    />
-                  </div>
+                {/* VS divider */}
+                <div style={{
+                  textAlign: 'center',
+                  fontSize: '0.7rem',
+                  fontWeight: '500',
+                  color: '#6b7280',
+                  margin: '0.125rem 0'
+                }}>
+                  vs
+                </div>
 
-                  {/* Team B Player */}
-                  <div>
+                {/* Vertical Layout: Team B */}
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  gap: '0.5rem'
+                }}>
+                  <div style={{ display: 'flex', gap: '0.25rem', flex: 1 }}>
                     <select
                       value={score.teamBPlayer1 || ''}
                       onChange={(e) => handleScoreChange(index, 'teamBPlayer1', e.target.value)}
                       style={{
-                        width: '100%',
-                        padding: '0.5rem',
+                        flex: 1,
+                        padding: '0.25rem',
                         border: '1px solid #d1d5db',
                         borderRadius: '4px',
-                        fontSize: '0.875rem',
-                        backgroundColor: 'white'
+                        fontSize: '0.7rem',
+                        backgroundColor: 'white',
+                        textAlign: 'center'
                       }}
                     >
                       <option value="">Select Player</option>
@@ -223,28 +219,47 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       ))}
                     </select>
                     {isDoubles && (
-                      <select
-                        value={score.teamBPlayer2 || ''}
-                        onChange={(e) => handleScoreChange(index, 'teamBPlayer2', e.target.value)}
-                        style={{
-                          width: '100%',
-                          padding: '0.5rem',
-                          border: '1px solid #d1d5db',
-                          borderRadius: '4px',
-                          fontSize: '0.875rem',
-                          backgroundColor: 'white',
-                          marginTop: '0.5rem'
-                        }}
-                      >
-                        <option value="">Select Partner</option>
-                        {TEAM_PLAYERS[match.teamB]?.map((player) => (
-                          <option key={player} value={player}>
-                            {player}
-                          </option>
-                        ))}
-                      </select>
+                      <>
+                        <span style={{ alignSelf: 'center', fontSize: '0.7rem', color: '#6b7280' }}>/</span>
+                        <select
+                          value={score.teamBPlayer2 || ''}
+                          onChange={(e) => handleScoreChange(index, 'teamBPlayer2', e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '0.25rem',
+                            border: '1px solid #d1d5db',
+                            borderRadius: '4px',
+                            fontSize: '0.7rem',
+                            backgroundColor: 'white',
+                            textAlign: 'center'
+                          }}
+                        >
+                          <option value="">Select Partner</option>
+                          {TEAM_PLAYERS[match.teamB]?.map((player) => (
+                            <option key={player} value={player}>
+                              {player}
+                            </option>
+                          ))}
+                        </select>
+                      </>
                     )}
                   </div>
+                  <input
+                    type="number"
+                    value={score.teamBScore}
+                    onChange={(e) => handleScoreChange(index, 'teamBScore', e.target.value)}
+                    style={{
+                      width: '50px',
+                      padding: '0.25rem',
+                      border: '1px solid #d1d5db',
+                      borderRadius: '4px',
+                      textAlign: 'center',
+                      fontSize: '0.8rem',
+                      fontWeight: '600'
+                    }}
+                    min="0"
+                    max="30"
+                  />
                 </div>
               </div>
             );
