@@ -9,4 +9,5 @@
   from = "/*"
   to = "/index.html"
   status = 200
-  force = true
+  # Do not force - let Netlify serve real assets when present. For SPA fallback,
+  # status = 200 is sufficient and will not override existing files.
