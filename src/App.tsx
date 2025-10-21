@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { useTournamentStore } from './store';
-import type { Match } from './types';
-import { isMatchPlayed } from './types';
+import type { Match, KnockoutMatch } from './types';
+import { isMatchPlayed, isKnockoutMatchComplete } from './types';
 import ViewMatchModal from './components/ViewMatchModal';
 import EditMatchModal from './components/EditMatchModal';
 import './App.css';
@@ -388,11 +388,194 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
   );
 }
 
+// Knockout Matches Component  
+function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: { 
+  knockoutMatches: KnockoutMatch[]; 
+  isAdmin: boolean; 
+  onUpdateMatch: (matchId: string, scores: KnockoutMatch['scores']) => void;
+}) {
+  const [selectedMatch, setSelectedMatch] = useState<KnockoutMatch | null>(null);
+  const [isViewing, setIsViewing] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+
+  const semiMatches = knockoutMatches.filter(m => m.type === 'semi');
+  const finalMatches = knockoutMatches.filter(m => m.type === 'final');
+
+  const KnockoutSection = ({ title, matches }: { title: string; matches: KnockoutMatch[] }) => {
+    return (
+      <div style={{
+        backgroundColor: 'white',
+        padding: '0.375rem',
+        borderRadius: '6px',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ 
+          margin: '0 0 0.375rem 0',
+          padding: '0.5rem 0.25rem',
+          minHeight: 'auto'
+        }}>
+          <h3 style={{ 
+            margin: '0', 
+            fontSize: '0.9rem', 
+            fontWeight: '600',
+            lineHeight: '1',
+            display: 'flex',
+            alignItems: 'center'
+          }}>
+            {title}
+          </h3>
+        </div>
+
+        <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
+          {matches.map((match) => {
+            const matchPlayed = isKnockoutMatchComplete(match);
+            let matchesWon = { teamA: 0, teamB: 0 };
+            let totalScores = { teamA: 0, teamB: 0 };
+
+            if (matchPlayed) {
+              match.scores.forEach(score => {
+                if (score.teamAScore > score.teamBScore) {
+                  matchesWon.teamA++;
+                } else if (score.teamBScore > score.teamAScore) {
+                  matchesWon.teamB++;
+                }
+                totalScores.teamA += score.teamAScore;
+                totalScores.teamB += score.teamBScore;
+              });
+            }
+
+            const teamADisplay = match.teamA === "TBD" ? "TBD" : match.teamA;
+            const teamBDisplay = match.teamB === "TBD" ? "TBD" : match.teamB;
+
+            return (
+              <div key={match.id} className="match-row" style={{ 
+                display: 'grid', 
+                gridTemplateColumns: '1fr 1fr 88px', 
+                gap: '0.375rem', 
+                alignItems: 'center', 
+                padding: '0.5rem', 
+                background: 'white', 
+                borderRadius: '4px', 
+                border: '1px solid #f3f4f6' 
+              }}>
+                <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                  {teamADisplay} vs {teamBDisplay}
+                </div>
+
+                <div className="match-col match-stats" style={{ textAlign: 'left' }}>
+                  {matchPlayed ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
+                      <div style={{ fontSize: '0.8rem', fontWeight: '600' }}>
+                        Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>
+                      </div>
+                      <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
+                        Points: <span style={{ color: totalScores.teamA > totalScores.teamB ? '#059669' : '#6b7280' }}>{totalScores.teamA}</span> - <span style={{ color: totalScores.teamB > totalScores.teamA ? '#059669' : '#6b7280' }}>{totalScores.teamB}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.8rem' }}>
+                      {match.teamA === "TBD" || match.teamB === "TBD" ? "TBD" : "Not Played"}
+                    </div>
+                  )}
+                </div>
+
+                <div className="match-col match-actions" style={{ textAlign: 'right' }}>
+                  <div style={{ display: 'flex', gap: '0.25rem', justifyContent: 'flex-end' }}>
+                    <button
+                      onClick={() => {
+                        setSelectedMatch(match);
+                        setIsViewing(true);
+                      }}
+                      style={{
+                        backgroundColor: '#6b7280',
+                        color: 'white',
+                        border: 'none',
+                        padding: '0.25rem 0.5rem',
+                        borderRadius: '4px',
+                        cursor: 'pointer',
+                        fontSize: '0.75rem'
+                      }}
+                    >
+                      View
+                    </button>
+                    {isAdmin && match.teamA !== "TBD" && match.teamB !== "TBD" && (
+                      <button
+                        onClick={() => {
+                          setSelectedMatch(match);
+                          setIsEditing(true);
+                        }}
+                        style={{
+                          backgroundColor: '#2563eb',
+                          color: 'white',
+                          border: 'none',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '4px',
+                          cursor: 'pointer',
+                          fontSize: '0.75rem'
+                        }}
+                      >
+                        Edit
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Convert KnockoutMatch to Match format for modals
+  const convertToMatch = (knockoutMatch: KnockoutMatch): Match => ({
+    id: knockoutMatch.id,
+    teamA: knockoutMatch.teamA as any,
+    teamB: knockoutMatch.teamB as any,
+    pool: 'A' as any, // Dummy value for knockout matches
+    scores: knockoutMatch.scores
+  });
+
+  return (
+    <>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+        <KnockoutSection title="Semi Finals" matches={semiMatches} />
+        <KnockoutSection title="Finals" matches={finalMatches} />
+      </div>
+
+      {selectedMatch && isViewing && (
+        <ViewMatchModal 
+          match={convertToMatch(selectedMatch)} 
+          onClose={() => {
+            setSelectedMatch(null);
+            setIsViewing(false);
+          }}
+        />
+      )}
+
+      {selectedMatch && isEditing && (
+        <EditMatchModal 
+          match={convertToMatch(selectedMatch)} 
+          onClose={() => {
+            setSelectedMatch(null);
+            setIsEditing(false);
+          }}
+          onSave={(scores) => {
+            onUpdateMatch(selectedMatch.id, scores);
+            setSelectedMatch(null);
+            setIsEditing(false);
+          }}
+        />
+      )}
+    </>
+  );
+}
+
 function AppContent() {
   const { isAdmin, logout } = useAuth();
-  const { matches, standings, resetTournament, updateMatch } = useTournamentStore();
+  const { matches, knockoutMatches, standings, resetTournament, updateMatch, updateKnockoutMatch } = useTournamentStore();
   const [showLoginModal, setShowLoginModal] = useState(false);
-  const [activeTab, setActiveTab] = useState<'standings' | 'matches'>('standings');
+  const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'knockouts'>('standings');
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
@@ -413,7 +596,7 @@ function AppContent() {
             <div style={{
               width: '2rem',
               height: '2rem',
-              backgroundColor: '#2563eb',
+              backgroundColor: '#059669',
               borderRadius: '4px',
               display: 'flex',
               alignItems: 'center',
@@ -424,7 +607,7 @@ function AppContent() {
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>
-                Badminton Tournament
+                Internal Tournament
               </h1>
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#6b7280' }}>
                 Pool Stage
@@ -528,6 +711,20 @@ function AppContent() {
           >
             Matches
           </button>
+          <button
+            onClick={() => setActiveTab('knockouts')}
+            style={{
+              padding: '0.5rem 1rem',
+              backgroundColor: activeTab === 'knockouts' ? 'white' : 'transparent',
+              border: 'none',
+              borderRadius: '4px',
+              fontWeight: '500',
+              cursor: 'pointer',
+              fontSize: '0.875rem'
+            }}
+          >
+            Knockouts
+          </button>
         </div>
 
         {/* Data Persistence Info removed — using Supabase for persistence; UI banner omitted */}
@@ -535,8 +732,10 @@ function AppContent() {
         {/* Tab Content */}
         {activeTab === 'standings' ? (
           <StandingsTable poolA={standings.poolA} poolB={standings.poolB} />
-        ) : (
+        ) : activeTab === 'matches' ? (
           <MatchesList matches={matches} isAdmin={isAdmin} onUpdateMatch={updateMatch} />
+        ) : (
+          <KnockoutMatches knockoutMatches={knockoutMatches} isAdmin={isAdmin} onUpdateMatch={updateKnockoutMatch} />
         )}
       </main>
 

@@ -18,9 +18,12 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
   ) => {
     const newScores = [...scores];
     if (field === 'teamAScore' || field === 'teamBScore') {
+      const numericValue = typeof value === 'string' ? parseInt(value) || 0 : value;
+      // Enforce maximum score of 21 for badminton
+      const clampedValue = Math.min(Math.max(numericValue, 0), 21);
       newScores[categoryIndex] = {
         ...newScores[categoryIndex],
-        [field]: typeof value === 'string' ? parseInt(value) || 0 : value
+        [field]: clampedValue
       };
     } else {
       newScores[categoryIndex] = {
@@ -110,7 +113,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   marginBottom: '0.125rem',
                   gap: '0.5rem'
                 }}>
@@ -125,10 +128,12 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                         borderRadius: '4px',
                         fontSize: '0.7rem',
                         backgroundColor: 'white',
-                        textAlign: 'center'
+                        textAlign: 'center',
+                        minHeight: '28px',
+                        color: score.teamAPlayer1 ? '#374151' : '#9ca3af'
                       }}
                     >
-                      <option value="">Select Player</option>
+                      <option value="">{isDoubles ? "Select Player 1" : "Select Player"}</option>
                       {TEAM_PLAYERS[match.teamA]?.map((player) => (
                         <option key={player} value={player}>
                           {player}
@@ -148,10 +153,12 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                             borderRadius: '4px',
                             fontSize: '0.7rem',
                             backgroundColor: 'white',
-                            textAlign: 'center'
+                            textAlign: 'center',
+                            minHeight: '28px',
+                            color: score.teamAPlayer2 ? '#374151' : '#9ca3af'
                           }}
                         >
-                          <option value="">Select Partner</option>
+                          <option value="">Select Player 2</option>
                           {TEAM_PLAYERS[match.teamA]?.map((player) => (
                             <option key={player} value={player}>
                               {player}
@@ -172,10 +179,11 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       borderRadius: '4px',
                       textAlign: 'center',
                       fontSize: '0.8rem',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      minHeight: '28px'
                     }}
                     min="0"
-                    max="30"
+                    max="21"
                   />
                 </div>
 
@@ -194,7 +202,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                 <div style={{
                   display: 'flex',
                   justifyContent: 'space-between',
-                  alignItems: 'center',
+                  alignItems: 'flex-start',
                   gap: '0.5rem'
                 }}>
                   <div style={{ display: 'flex', gap: '0.25rem', flex: 1 }}>
@@ -208,10 +216,12 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                         borderRadius: '4px',
                         fontSize: '0.7rem',
                         backgroundColor: 'white',
-                        textAlign: 'center'
+                        textAlign: 'center',
+                        minHeight: '28px',
+                        color: score.teamBPlayer1 ? '#374151' : '#9ca3af'
                       }}
                     >
-                      <option value="">Select Player</option>
+                      <option value="">{isDoubles ? "Select Player 1" : "Select Player"}</option>
                       {TEAM_PLAYERS[match.teamB]?.map((player) => (
                         <option key={player} value={player}>
                           {player}
@@ -231,10 +241,12 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                             borderRadius: '4px',
                             fontSize: '0.7rem',
                             backgroundColor: 'white',
-                            textAlign: 'center'
+                            textAlign: 'center',
+                            minHeight: '28px',
+                            color: score.teamBPlayer2 ? '#374151' : '#9ca3af'
                           }}
                         >
-                          <option value="">Select Partner</option>
+                          <option value="">Select Player 2</option>
                           {TEAM_PLAYERS[match.teamB]?.map((player) => (
                             <option key={player} value={player}>
                               {player}
@@ -255,10 +267,11 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       borderRadius: '4px',
                       textAlign: 'center',
                       fontSize: '0.8rem',
-                      fontWeight: '600'
+                      fontWeight: '600',
+                      minHeight: '28px'
                     }}
                     min="0"
-                    max="30"
+                    max="21"
                   />
                 </div>
               </div>

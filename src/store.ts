@@ -1,8 +1,18 @@
 import { useState, useEffect } from 'react';
-import type { Match, Standing } from './types';
-import { generateAllMatches, calculateStandings } from './types';
-// We'll dynamically import the Supabase client at runtime so missing package or envs
-// don't break the whole app. _supabaseClient caches the client or `null` if unavailable.
+import type { Match, Standing, KnockoutMatch } from './types';
+import { 
+  generateAllMatches, 
+  calculateStandings, 
+  areAllPoolMatchesComplete,
+  getQualifiedTeams,
+  generateKnockoutMatches,
+  getKnockoutMatchWinner
+} from './types';
+// Tournament data structure for persistence
+interface TournamentData {
+  poolMatches: Match[];
+  knockoutMatches: KnockoutMatch[];
+}
 let _supabaseClient: any | null | undefined = undefined;
 async function getSupabaseClient() {
   if (_supabaseClient !== undefined) return _supabaseClient;
@@ -26,6 +36,7 @@ async function getSupabaseClient() {
 // Simple state management for the tournament app
 class TournamentStore {
   private matches: Match[] = [];
+  private knockoutMatches: KnockoutMatch[] = [];
   private listeners: (() => void)[] = [];
   private isLoading = false;
 
@@ -53,12 +64,28 @@ class TournamentStore {
         if (error) {
           console.warn('Supabase read failed, falling back to localStorage:', (error as any).message || error);
           this.loadFromLocalStorage();
-        } else if (data && data.payload && Array.isArray(data.payload) && data.payload.length > 0) {
-          // Payload exists and has matches
-          this.matches = data.payload as Match[];
+        } else if (data && data.payload) {
+          // Check if payload is new format (object with poolMatches and knockoutMatches)
+          if (data.payload.poolMatches && Array.isArray(data.payload.poolMatches)) {
+            // New format with separate pool and knockout matches
+            const tournamentData = data.payload as TournamentData;
+            this.matches = tournamentData.poolMatches;
+            this.knockoutMatches = tournamentData.knockoutMatches || [];
+            this.initializeKnockoutMatches(); // Update knockout matches based on current pool state
+          } else if (Array.isArray(data.payload) && data.payload.length > 0) {
+            // Old format - just pool matches array
+            this.matches = data.payload as Match[];
+            this.initializeKnockoutMatches();
+          } else {
+            // No valid data; generate defaults and save
+            this.matches = generateAllMatches();
+            this.initializeKnockoutMatches();
+            await this.saveData();
+          }
         } else {
           // No row yet or payload empty; generate defaults and save
           this.matches = generateAllMatches();
+          this.initializeKnockoutMatches();
           await this.saveData();
         }
       } else {
@@ -75,17 +102,106 @@ class TournamentStore {
   }
 
   private loadFromLocalStorage() {
-    const savedMatches = localStorage.getItem('tournament-matches');
-    if (savedMatches) {
-      this.matches = JSON.parse(savedMatches);
+    const savedData = localStorage.getItem('tournament-data');
+    if (savedData) {
+      try {
+        const parsedData = JSON.parse(savedData);
+        // Check if it's new format (object with poolMatches and knockoutMatches)
+        if (parsedData.poolMatches && Array.isArray(parsedData.poolMatches)) {
+          const tournamentData = parsedData as TournamentData;
+          this.matches = tournamentData.poolMatches;
+          this.knockoutMatches = tournamentData.knockoutMatches || [];
+          this.initializeKnockoutMatches();
+        } else if (Array.isArray(parsedData)) {
+          // Old format - just matches array
+          this.matches = parsedData;
+          this.initializeKnockoutMatches();
+        } else {
+          // Invalid format, reset to defaults
+          this.matches = generateAllMatches();
+          this.initializeKnockoutMatches();
+          this.saveToLocalStorage();
+        }
+      } catch (error) {
+        console.error('Failed to parse localStorage data, resetting:', error);
+        this.matches = generateAllMatches();
+        this.initializeKnockoutMatches();
+        this.saveToLocalStorage();
+      }
     } else {
-      this.matches = generateAllMatches();
-      this.saveToLocalStorage();
+      // Check for old format localStorage key
+      const savedMatches = localStorage.getItem('tournament-matches');
+      if (savedMatches) {
+        try {
+          this.matches = JSON.parse(savedMatches);
+          this.initializeKnockoutMatches();
+          // Save in new format and remove old key
+          this.saveToLocalStorage();
+          localStorage.removeItem('tournament-matches');
+        } catch (error) {
+          console.error('Failed to migrate old localStorage data:', error);
+          this.matches = generateAllMatches();
+          this.initializeKnockoutMatches();
+          this.saveToLocalStorage();
+        }
+      } else {
+        // No saved data, generate defaults
+        this.matches = generateAllMatches();
+        this.initializeKnockoutMatches();
+        this.saveToLocalStorage();
+      }
+    }
+  }
+
+  private initializeKnockoutMatches() {
+    // Check if pool matches are complete to determine semi-final teams
+    if (areAllPoolMatchesComplete(this.matches)) {
+      const standings = this.getStandings();
+      const { poolATop2, poolBTop2 } = getQualifiedTeams(standings);
+      
+      // Update knockout matches with qualified teams
+      const generatedKnockouts = generateKnockoutMatches(poolATop2, poolBTop2);
+      
+      // If we already have knockout matches, preserve scores but update teams
+      if (this.knockoutMatches.length > 0) {
+        this.knockoutMatches.forEach((existing, index) => {
+          if (index < generatedKnockouts.length) {
+            existing.teamA = generatedKnockouts[index].teamA;
+            existing.teamB = generatedKnockouts[index].teamB;
+          }
+        });
+      } else {
+        this.knockoutMatches = generatedKnockouts;
+      }
+      
+      // Update finals teams based on semi results
+      this.updateFinalsTeams();
+    } else {
+      // Pool matches not complete, generate with TBD
+      this.knockoutMatches = generateKnockoutMatches(["TBD", "TBD"], ["TBD", "TBD"]);
+    }
+  }
+
+  private updateFinalsTeams() {
+    const semi1 = this.knockoutMatches.find(m => m.id === 'semi-1');
+    const semi2 = this.knockoutMatches.find(m => m.id === 'semi-2');
+    const final = this.knockoutMatches.find(m => m.id === 'final');
+    
+    if (semi1 && semi2 && final) {
+      const semi1Winner = getKnockoutMatchWinner(semi1);
+      const semi2Winner = getKnockoutMatchWinner(semi2);
+      
+      final.teamA = semi1Winner;
+      final.teamB = semi2Winner;
     }
   }
 
   private saveToLocalStorage() {
-    localStorage.setItem('tournament-matches', JSON.stringify(this.matches));
+    const tournamentData: TournamentData = {
+      poolMatches: this.matches,
+      knockoutMatches: this.knockoutMatches
+    };
+    localStorage.setItem('tournament-data', JSON.stringify(tournamentData));
   }
 
   private async saveData() {
@@ -95,9 +211,14 @@ class TournamentStore {
       // Upsert to Supabase (singleton id) if available
       const supabase = await getSupabaseClient();
       if (supabase) {
+        const tournamentData: TournamentData = {
+          poolMatches: this.matches,
+          knockoutMatches: this.knockoutMatches
+        };
+        
         const { error } = await supabase.from('tournament').upsert({
           id: 'singleton',
-          payload: this.matches,
+          payload: tournamentData,
         });
 
         if (error) {
@@ -124,6 +245,10 @@ class TournamentStore {
     return this.matches;
   }
 
+  getKnockoutMatches(): KnockoutMatch[] {
+    return this.knockoutMatches;
+  }
+
   getStandings(): { poolA: Standing[]; poolB: Standing[] } {
     return calculateStandings(this.matches);
   }
@@ -135,6 +260,22 @@ class TournamentStore {
         ...this.matches[matchIndex],
         scores
       };
+      // Re-initialize knockout matches when pool matches update
+      this.initializeKnockoutMatches();
+      this.saveData();
+      this.notify();
+    }
+  }
+
+  updateKnockoutMatch(matchId: string, scores: KnockoutMatch['scores']) {
+    const matchIndex = this.knockoutMatches.findIndex(m => m.id === matchId);
+    if (matchIndex !== -1) {
+      this.knockoutMatches[matchIndex] = {
+        ...this.knockoutMatches[matchIndex],
+        scores
+      };
+      // Update finals teams if semi results changed
+      this.updateFinalsTeams();
       this.saveData();
       this.notify();
     }
@@ -149,6 +290,8 @@ class TournamentStore {
           ...this.matches[matchIndex],
           scores
         };
+        // Re-initialize knockout matches when pool matches update
+        this.initializeKnockoutMatches();
         await this.saveData();
         this.notify();
       } else {
@@ -160,15 +303,38 @@ class TournamentStore {
     }
   }
 
+  async updateKnockoutMatchAPI(matchId: string, scores: KnockoutMatch['scores']) {
+    try {
+      const matchIndex = this.knockoutMatches.findIndex(m => m.id === matchId);
+      if (matchIndex !== -1) {
+        this.knockoutMatches[matchIndex] = {
+          ...this.knockoutMatches[matchIndex],
+          scores
+        };
+        // Update finals teams if semi results changed
+        this.updateFinalsTeams();
+        await this.saveData();
+        this.notify();
+      } else {
+        console.warn('Knockout match not found locally when updating via API');
+      }
+    } catch (error) {
+      console.error('Failed to update knockout match via API, using local update:', error);
+      this.updateKnockoutMatch(matchId, scores);
+    }
+  }
+
   async resetTournament() {
     try {
       // Reset to generated default and persist to Supabase
       this.matches = generateAllMatches();
+      this.initializeKnockoutMatches();
       await this.saveData();
       this.notify();
     } catch (error) {
       console.error('Failed to reset via API, using local reset:', error);
       this.matches = generateAllMatches();
+      this.initializeKnockoutMatches();
       this.saveData();
       this.notify();
     }
@@ -191,10 +357,13 @@ export function useTournamentStore() {
 
   return {
     matches: tournamentStore.getMatches(),
+    knockoutMatches: tournamentStore.getKnockoutMatches(),
     standings: tournamentStore.getStandings(),
     isLoading: tournamentStore.loading,
     updateMatch: (matchId: string, scores: Match['scores']) => 
       tournamentStore.updateMatchAPI(matchId, scores),
+    updateKnockoutMatch: (matchId: string, scores: KnockoutMatch['scores']) =>
+      tournamentStore.updateKnockoutMatchAPI(matchId, scores),
     resetTournament: () => tournamentStore.resetTournament()
   };
 }

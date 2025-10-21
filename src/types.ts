@@ -29,6 +29,14 @@ export interface Match {
   scores: CategoryScore[];
 }
 
+export interface KnockoutMatch {
+  id: string;
+  teamA: TeamName | "TBD";
+  teamB: TeamName | "TBD";
+  type: "semi" | "final";
+  scores: CategoryScore[];
+}
+
 export interface Standing {
   team: TeamName;
   wins: number;
@@ -193,6 +201,135 @@ export function isMatchPlayed(match: Match): boolean {
 
 // Check if match is complete: all categories have been updated (either a score entered or player name present)
 export function isMatchComplete(match: Match): boolean {
+  return match.scores.every(score => {
+    const hasScore = (typeof score.teamAScore === 'number' && score.teamAScore !== 0) || (typeof score.teamBScore === 'number' && score.teamBScore !== 0);
+    const hasPlayer = (score.teamAPlayer1 && score.teamAPlayer1.trim() !== '') || (score.teamBPlayer1 && score.teamBPlayer1.trim() !== '');
+    return hasScore || hasPlayer;
+  });
+}
+
+// Check if all pool matches are complete
+export function areAllPoolMatchesComplete(matches: Match[]): boolean {
+  return matches.every(match => isMatchComplete(match));
+}
+
+// Get top 2 teams from each pool based on standings
+export function getQualifiedTeams(standings: { poolA: Standing[]; poolB: Standing[] }): {
+  poolATop2: [TeamName, TeamName];
+  poolBTop2: [TeamName, TeamName];
+} {
+  // Sort by points descending, then by wins descending
+  const sortedPoolA = [...standings.poolA].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    return b.wins - a.wins;
+  });
+  
+  const sortedPoolB = [...standings.poolB].sort((a, b) => {
+    if (b.points !== a.points) return b.points - a.points;
+    return b.wins - a.wins;
+  });
+
+  return {
+    poolATop2: [sortedPoolA[0].team, sortedPoolA[1].team],
+    poolBTop2: [sortedPoolB[0].team, sortedPoolB[1].team]
+  };
+}
+
+// Generate knockout matches
+export function generateKnockoutMatches(
+  poolATop2: [TeamName | "TBD", TeamName | "TBD"], 
+  poolBTop2: [TeamName | "TBD", TeamName | "TBD"]
+): KnockoutMatch[] {
+  return [
+    {
+      id: "semi-1",
+      teamA: poolATop2[0], // Pool A 1st vs Pool B 2nd
+      teamB: poolBTop2[1],
+      type: "semi",
+      scores: CATEGORIES.map(cat => ({
+        category: cat,
+        teamAScore: 0,
+        teamBScore: 0,
+        teamAPlayer1: "",
+        teamAPlayer2: isDoublesCategory(cat) ? "" : undefined,
+        teamBPlayer1: "",
+        teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
+      })),
+    },
+    {
+      id: "semi-2", 
+      teamA: poolBTop2[0], // Pool B 1st vs Pool A 2nd
+      teamB: poolATop2[1],
+      type: "semi",
+      scores: CATEGORIES.map(cat => ({
+        category: cat,
+        teamAScore: 0,
+        teamBScore: 0,
+        teamAPlayer1: "",
+        teamAPlayer2: isDoublesCategory(cat) ? "" : undefined,
+        teamBPlayer1: "",
+        teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
+      })),
+    },
+    {
+      id: "final",
+      teamA: "TBD", // Winner of semi-1
+      teamB: "TBD", // Winner of semi-2  
+      type: "final",
+      scores: CATEGORIES.map(cat => ({
+        category: cat,
+        teamAScore: 0,
+        teamBScore: 0,
+        teamAPlayer1: "",
+        teamAPlayer2: isDoublesCategory(cat) ? "" : undefined,
+        teamBPlayer1: "",
+        teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
+      })),
+    }
+  ];
+}
+
+// Get winner of a knockout match
+export function getKnockoutMatchWinner(match: KnockoutMatch): TeamName | "TBD" {
+  if (!isKnockoutMatchComplete(match)) return "TBD";
+  
+  let teamAWins = 0;
+  let teamBWins = 0;
+  let totalPointsA = 0;
+  let totalPointsB = 0;
+
+  match.scores.forEach(score => {
+    if (score.teamAScore > score.teamBScore) {
+      teamAWins++;
+    } else if (score.teamBScore > score.teamAScore) {
+      teamBWins++;
+    }
+    totalPointsA += score.teamAScore;
+    totalPointsB += score.teamBScore;
+  });
+
+  // Determine match winner by category wins; if tied, break tie by total points
+  if (teamAWins > teamBWins) {
+    return match.teamA as TeamName;
+  } else if (teamBWins > teamAWins) {
+    return match.teamB as TeamName;
+  } else {
+    // Category wins are equal — use total points as tiebreaker
+    if (totalPointsA > totalPointsB) {
+      return match.teamA as TeamName;
+    } else if (totalPointsB > totalPointsA) {
+      return match.teamB as TeamName;
+    } else {
+      // Fully tied: return TBD (this shouldn't happen in elimination)
+      return "TBD";
+    }
+  }
+}
+
+// Check if knockout match is complete
+export function isKnockoutMatchComplete(match: KnockoutMatch): boolean {
+  if (match.teamA === "TBD" || match.teamB === "TBD") return false;
+  
   return match.scores.every(score => {
     const hasScore = (typeof score.teamAScore === 'number' && score.teamAScore !== 0) || (typeof score.teamBScore === 'number' && score.teamBScore !== 0);
     const hasPlayer = (score.teamAPlayer1 && score.teamAPlayer1.trim() !== '') || (score.teamBPlayer1 && score.teamBPlayer1.trim() !== '');
