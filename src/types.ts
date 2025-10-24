@@ -1,7 +1,7 @@
 // Core tournament data types
 export type TeamName = 
-  | "Team 1" | "Team 2" | "Team 3" | "Team 4" 
-  | "Team 5" | "Team 6" | "Team 7" | "Team 8";
+  | "Lord of the strings" | "The BaddyVerse" | "Silicon Swat" | "Herricanes"
+  | "Rising Phoenix" | "Mighty Spartans" | "Racket Blitz" | "SmashOps";
 
 export type Category = 
   | "Men's Singles 1"
@@ -46,14 +46,14 @@ export interface Standing {
 
 // Team players data
 export const TEAM_PLAYERS: Record<TeamName, string[]> = {
-  "Team 1": ["Prajwal S", "Ananya", "Nithish B M", "Mohanraj", "Karthik", "Pratham Pote", "Anika"],
-  "Team 2": ["Chaitanya", "Amrutha", "Manu", "Shreeharsha", "Shashikumar", "Abhishek", "Garima"],
-  "Team 3": ["Nithin P", "Kiruthika", "Arya", "Hari Siva Shankar", "Alex", "Vikrant"],
-  "Team 4": ["Vikram", "Anoohya", "Manish", "Khalid", "Naresh", "Kiran"],
-  "Team 5": ["Aman", "Deepika", "Ramanan", "Chirag", "Prajwal P", "Kingsly"],
-  "Team 6": ["Nithin Bhaskar", "Rubini", "Preetham", "Mithun", "Nattu", "Shiva"],
-  "Team 7": ["Ninad", "Divya", "Suresh", "Srujan", "Aditya", "Nikhila"],
-  "Team 8": ["Ajay", "Lakshitha", "Shreesha", "Ganesh", "Aswin", "Vipin"]
+  "Lord of the strings": ["Prajwal S", "Ananya", "Nithish B M", "Mohanraj", "Karthik", "Pratham Pote", "Anika"],
+  "The BaddyVerse": ["Chaitanya", "Amrutha", "Manu", "Shreeharsha", "Shashikumar", "Abhishek", "Garima"],
+  "Silicon Swat": ["Nithin P", "Kiruthika", "Arya", "Hari Siva Shankar", "Alex", "Vikrant"],
+  "Herricanes": ["Vikram", "Anoohya", "Manish", "Khalid", "Naresh", "Kiran"],
+  "Rising Phoenix": ["Aman", "Deepika", "Ramanan", "Chirag", "Prajwal P", "Kingsly"],
+  "Mighty Spartans": ["Nithin Bhaskar", "Rubini", "Preetham", "Mithun", "Nattu", "Shiva"],
+  "Racket Blitz": ["Ninad", "Divya", "Suresh", "Srujan", "Aditya", "Nikhila"],
+  "SmashOps": ["Ajay", "Lakshitha", "Shreesha", "Ganesh", "Aswin", "Vipin"]
 };
 
 export const CATEGORIES: Category[] = [
@@ -65,8 +65,20 @@ export const CATEGORIES: Category[] = [
   "Mixed Doubles",
 ];
 
-export const POOL_A_TEAMS: TeamName[] = ["Team 1", "Team 2", "Team 3", "Team 4"];
-export const POOL_B_TEAMS: TeamName[] = ["Team 5", "Team 6", "Team 7", "Team 8"];
+// Pools: put the four specified teams in Pool B, others in Pool A
+export const POOL_B_TEAMS: TeamName[] = [
+  "Lord of the strings",
+  "The BaddyVerse",
+  "Silicon Swat",
+  "Herricanes"
+];
+
+export const POOL_A_TEAMS: TeamName[] = [
+  "Rising Phoenix",
+  "Mighty Spartans",
+  "Racket Blitz",
+  "SmashOps"
+];
 
 // Helper functions
 export function isDoublesCategory(category: string): boolean {
@@ -135,6 +147,17 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
   [...POOL_A_TEAMS, ...POOL_B_TEAMS].forEach(team => {
     standings[team] = { team, wins: 0, losses: 0, points: 0 };
   });
+
+  // Also initialize any team names that appear in matches but are not in the POOL lists
+  matches.forEach(m => {
+    if (m.teamA && !(m.teamA in standings)) {
+      // cast because loaded matches may contain earlier team strings that match TeamName at runtime
+      (standings as any)[m.teamA] = { team: m.teamA as TeamName, wins: 0, losses: 0, points: 0 };
+    }
+    if (m.teamB && !(m.teamB in standings)) {
+      (standings as any)[m.teamB] = { team: m.teamB as TeamName, wins: 0, losses: 0, points: 0 };
+    }
+  });
   
   matches.forEach(match => {
     // Only process matches that are complete (all categories filled)
@@ -160,25 +183,35 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
 
     // Determine match winner by category wins; if tied, break tie by total points
     if (teamAWins > teamBWins) {
+      if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+      if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
       standings[match.teamA]!.wins++;
-      standings[match.teamA]!.points += 2;
+      standings[match.teamA]!.points += 1;
       standings[match.teamB]!.losses++;
     } else if (teamBWins > teamAWins) {
+      if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+      if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
       standings[match.teamB]!.wins++;
-      standings[match.teamB]!.points += 2;
+      standings[match.teamB]!.points += 1;
       standings[match.teamA]!.losses++;
     } else {
       // Category wins are equal — use total points as tiebreaker
       if (totalPointsA > totalPointsB) {
+        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
         standings[match.teamA]!.wins++;
-        standings[match.teamA]!.points += 2;
+        standings[match.teamA]!.points += 1;
         standings[match.teamB]!.losses++;
       } else if (totalPointsB > totalPointsA) {
+        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
         standings[match.teamB]!.wins++;
-        standings[match.teamB]!.points += 2;
+        standings[match.teamB]!.points += 1;
         standings[match.teamA]!.losses++;
       } else {
-        // Fully tied: award 1 point each
+        // Fully tied: award 1 point each (draw)
+        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
         standings[match.teamA]!.points += 1;
         standings[match.teamB]!.points += 1;
       }

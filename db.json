@@ -1,0 +1,16 @@
+{
+  "teams": [
+    { "id": 1, "name": "Lord of the strings" },
+    { "id": 2, "name": "The BaddyVerse" },
+    { "id": 3, "name": "Silicon Swat" },
+    { "id": 4, "name": "Herricanes" },
+    { "id": 5, "name": "Rising Phoenix" },
+    { "id": 6, "name": "Mighty Spartans" },
+    { "id": 7, "name": "Racket Blitz" },
+    { "id": 8, "name": "SmashOps" }
+  ],
+  "pools": {
+    "Pool A": [5, 6, 7, 8],
+    "Pool B": [1, 2, 3, 4]
+  }
+}
