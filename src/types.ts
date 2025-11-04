@@ -27,6 +27,12 @@ export interface Match {
   teamB: TeamName;
   pool: "A" | "B";
   scores: CategoryScore[];
+  tieBreaker?: {
+    teamAPlayers: string[]; // three player names
+    teamBPlayers: string[]; // three player names
+    teamAScore?: number; // tiebreak match score (e.g., 1 or 0)
+    teamBScore?: number;
+  };
 }
 
 export interface KnockoutMatch {
@@ -35,6 +41,12 @@ export interface KnockoutMatch {
   teamB: TeamName | "TBD";
   type: "semi" | "final";
   scores: CategoryScore[];
+  tieBreaker?: {
+    teamAPlayers: string[];
+    teamBPlayers: string[];
+    teamAScore?: number;
+    teamBScore?: number;
+  };
 }
 
 export interface Standing {
@@ -124,6 +136,12 @@ export function generatePoolMatches(teams: TeamName[], poolName: "A" | "B"): Mat
           teamBPlayer1: "",
           teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
         })),
+        tieBreaker: {
+          teamAPlayers: ['', '', ''],
+          teamBPlayers: ['', '', ''],
+          teamAScore: undefined,
+          teamBScore: undefined,
+        },
       });
     }
   }
@@ -209,11 +227,26 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
         standings[match.teamB]!.points += 1;
         standings[match.teamA]!.losses++;
       } else {
-        // Fully tied: award 1 point each (draw)
-        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
-        standings[match.teamA]!.points += 1;
-        standings[match.teamB]!.points += 1;
+        // Fully tied on categories and points. If a tieBreaker result exists, use it to award the win.
+        if (match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
+          if (match.tieBreaker.teamAScore > match.tieBreaker.teamBScore) {
+            if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+            if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+            standings[match.teamA]!.wins++;
+            standings[match.teamA]!.points += 1;
+            standings[match.teamB]!.losses++;
+          } else if (match.tieBreaker.teamBScore > match.tieBreaker.teamAScore) {
+            if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
+            if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+            standings[match.teamB]!.wins++;
+            standings[match.teamB]!.points += 1;
+            standings[match.teamA]!.losses++;
+          } else {
+            // tieBreak also tied: leave unresolved (no points awarded)
+          }
+        } else {
+          // No tiebreaker recorded yet: leave unresolved (no points awarded)
+        }
       }
     }
   });
@@ -288,6 +321,12 @@ export function generateKnockoutMatches(
         teamBPlayer1: "",
         teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
       })),
+      tieBreaker: {
+        teamAPlayers: ['', '', ''],
+        teamBPlayers: ['', '', ''],
+        teamAScore: undefined,
+        teamBScore: undefined,
+      },
     },
     {
       id: "semi-2", 
@@ -303,6 +342,12 @@ export function generateKnockoutMatches(
         teamBPlayer1: "",
         teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
       })),
+      tieBreaker: {
+        teamAPlayers: ['', '', ''],
+        teamBPlayers: ['', '', ''],
+        teamAScore: undefined,
+        teamBScore: undefined,
+      },
     },
     {
       id: "final",
@@ -318,6 +363,12 @@ export function generateKnockoutMatches(
         teamBPlayer1: "",
         teamBPlayer2: isDoublesCategory(cat) ? "" : undefined,
       })),
+      tieBreaker: {
+        teamAPlayers: ['', '', ''],
+        teamBPlayers: ['', '', ''],
+        teamAScore: undefined,
+        teamBScore: undefined,
+      },
     }
   ];
 }

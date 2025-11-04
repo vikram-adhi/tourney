@@ -5,11 +5,16 @@ import { CATEGORIES, TEAM_PLAYERS, isDoublesCategory, getCategoryAbbreviation } 
 interface EditMatchModalProps {
   match: Match;
   onClose: () => void;
-  onSave: (scores: Match['scores']) => void;
+  onSave: (scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => void;
 }
 
 export default function EditMatchModal({ match, onClose, onSave }: EditMatchModalProps) {
   const [scores, setScores] = useState<CategoryScore[]>(match.scores);
+  const [tieBreaker, setTieBreaker] = useState<NonNullable<Match['tieBreaker']>>(() => {
+    return (
+      (match.tieBreaker as NonNullable<Match['tieBreaker']>) || { teamAPlayers: ['', '', ''], teamBPlayers: ['', '', ''], teamAScore: undefined, teamBScore: undefined }
+    );
+  });
 
   const handleScoreChange = (
     categoryIndex: number, 
@@ -34,12 +39,36 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
     setScores(newScores);
   };
 
+  // compute tie condition once and reuse it (used by JSX and save logic)
+  const teamWinsAndPoints = (() => {
+    let teamAWins = 0;
+    let teamBWins = 0;
+    let totalPointsA = 0;
+    let totalPointsB = 0;
+    scores.forEach(s => {
+      if (s.teamAScore > s.teamBScore) teamAWins++;
+      else if (s.teamBScore > s.teamAScore) teamBWins++;
+      totalPointsA += s.teamAScore;
+      totalPointsB += s.teamBScore;
+    });
+    return { teamAWins, teamBWins, totalPointsA, totalPointsB };
+  })();
+
+  const showTie = teamWinsAndPoints.teamAWins === 3 && teamWinsAndPoints.teamBWins === 3 && teamWinsAndPoints.totalPointsA === teamWinsAndPoints.totalPointsB;
+
   const handleSave = () => {
-    onSave(scores);
+    // Determine if tieBreaker has any meaningful data (players selected or a numeric score)
+    const tieBreakerHasData = (tieBreaker.teamAPlayers || []).some(p => p && p.trim() !== '')
+      || (tieBreaker.teamBPlayers || []).some(p => p && p.trim() !== '')
+      || (typeof tieBreaker.teamAScore === 'number')
+      || (typeof tieBreaker.teamBScore === 'number');
+
+    // Persist tieBreaker if it has any data (so View can render it). Inputs still only show when showTie.
+    onSave(scores, tieBreakerHasData ? tieBreaker : undefined);
   };
 
   return (
-    <div style={{
+    <div className="edit-modal" style={{
       position: 'fixed',
       top: 0,
       left: 0,
@@ -69,7 +98,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
           borderBottom: '1px solid #e5e7eb',
           paddingBottom: '0.5rem'
         }}>
-          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: '600' }}>
+          <h2 style={{ margin: 0, fontSize: '0.95rem', fontWeight: '600', flex: 1, marginRight: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             Edit: {match.teamA} vs {match.teamB}
           </h2>
           <button
@@ -123,6 +152,9 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       onChange={(e) => handleScoreChange(index, 'teamAPlayer1', e.target.value)}
                       style={{
                         flex: 1,
+                        width: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
                         padding: '0.25rem',
                         border: '1px solid #d1d5db',
                         borderRadius: '4px',
@@ -147,16 +179,19 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                           value={score.teamAPlayer2 || ''}
                           onChange={(e) => handleScoreChange(index, 'teamAPlayer2', e.target.value)}
                           style={{
-                            flex: 1,
-                            padding: '0.25rem',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            backgroundColor: 'white',
-                            textAlign: 'center',
-                            minHeight: '28px',
-                            color: score.teamAPlayer2 ? '#374151' : '#9ca3af'
-                          }}
+                              flex: 1,
+                              width: '100%',
+                              minWidth: 0,
+                              boxSizing: 'border-box',
+                              padding: '0.25rem',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              backgroundColor: 'white',
+                              textAlign: 'center',
+                              minHeight: '28px',
+                              color: score.teamAPlayer2 ? '#374151' : '#9ca3af'
+                            }}
                         >
                           <option value="">Select Player 2</option>
                           {TEAM_PLAYERS[match.teamA]?.map((player) => (
@@ -211,6 +246,9 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       onChange={(e) => handleScoreChange(index, 'teamBPlayer1', e.target.value)}
                       style={{
                         flex: 1,
+                        width: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
                         padding: '0.25rem',
                         border: '1px solid #d1d5db',
                         borderRadius: '4px',
@@ -235,16 +273,19 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                           value={score.teamBPlayer2 || ''}
                           onChange={(e) => handleScoreChange(index, 'teamBPlayer2', e.target.value)}
                           style={{
-                            flex: 1,
-                            padding: '0.25rem',
-                            border: '1px solid #d1d5db',
-                            borderRadius: '4px',
-                            fontSize: '0.7rem',
-                            backgroundColor: 'white',
-                            textAlign: 'center',
-                            minHeight: '28px',
-                            color: score.teamBPlayer2 ? '#374151' : '#9ca3af'
-                          }}
+                              flex: 1,
+                              width: '100%',
+                              minWidth: 0,
+                              boxSizing: 'border-box',
+                              padding: '0.25rem',
+                              border: '1px solid #d1d5db',
+                              borderRadius: '4px',
+                              fontSize: '0.7rem',
+                              backgroundColor: 'white',
+                              textAlign: 'center',
+                              minHeight: '28px',
+                              color: score.teamBPlayer2 ? '#374151' : '#9ca3af'
+                            }}
                         >
                           <option value="">Select Player 2</option>
                           {TEAM_PLAYERS[match.teamB]?.map((player) => (
@@ -277,6 +318,83 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
               </div>
             );
           })}
+          {/* Tie-breaker inputs: show when computed showTie is true */}
+          {showTie && (
+            <div style={{ padding: '0.5rem 0.5rem', borderTop: '1px solid #eef2ff', marginTop: '0.5rem' }}>
+              <div style={{ fontWeight: 600, marginBottom: '0.25rem' }}>Tie-breaker (3v3)</div>
+
+              {/* Team A name */}
+              <div style={{ fontSize: '0.75rem', color: '#374151', marginBottom: '0.15rem' }}>{match.teamA}</div>
+
+              {/* Team A selects + score on same line */}
+              <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center', marginBottom: '0.35rem' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+                  {[0,1,2].map(i => (
+                    <select
+                      key={i}
+                      value={tieBreaker.teamAPlayers[i] || ''}
+                      onChange={(e) => { const clone = { ...tieBreaker }; clone.teamAPlayers = [...(clone.teamAPlayers || ['', '', ''])]; clone.teamAPlayers[i] = e.target.value; setTieBreaker(clone); }}
+                      style={{
+                        flex: 1,
+                        width: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
+                        padding: '0.25rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        backgroundColor: 'white',
+                        textAlign: 'center',
+                        minHeight: '28px',
+                        color: tieBreaker.teamAPlayers[i] ? '#374151' : '#9ca3af'
+                      }}
+                    >
+                      <option value="">Select Player</option>
+                      {TEAM_PLAYERS[match.teamA]?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  ))}
+                </div>
+                <input type="number" placeholder="" value={tieBreaker.teamAScore ?? ''} onChange={(e) => { const clone = { ...tieBreaker }; clone.teamAScore = parseInt(e.target.value) || 0; setTieBreaker(clone); }} style={{ width: '50px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '4px', textAlign: 'center', fontSize: '0.8rem', fontWeight: '600', minHeight: '28px' }} />
+              </div>
+
+              {/* Centered vs */}
+              <div style={{ textAlign: 'center', fontWeight: 600, color: '#374151', margin: '0.25rem 0' }}>vs</div>
+
+              {/* Team B name */}
+              <div style={{ fontSize: '0.75rem', color: '#374151', marginBottom: '0.15rem' }}>{match.teamB}</div>
+
+              {/* Team B selects + score on same line */}
+              <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                <div style={{ display: 'flex', gap: '0.5rem', flex: 1 }}>
+                  {[0,1,2].map(i => (
+                    <select
+                      key={i}
+                      value={tieBreaker.teamBPlayers[i] || ''}
+                      onChange={(e) => { const clone = { ...tieBreaker }; clone.teamBPlayers = [...(clone.teamBPlayers || ['', '', ''])]; clone.teamBPlayers[i] = e.target.value; setTieBreaker(clone); }}
+                      style={{
+                        flex: 1,
+                        width: '100%',
+                        minWidth: 0,
+                        boxSizing: 'border-box',
+                        padding: '0.25rem',
+                        border: '1px solid #d1d5db',
+                        borderRadius: '4px',
+                        fontSize: '0.7rem',
+                        backgroundColor: 'white',
+                        textAlign: 'center',
+                        minHeight: '28px',
+                        color: tieBreaker.teamBPlayers[i] ? '#374151' : '#9ca3af'
+                      }}
+                    >
+                      <option value="">Select Player</option>
+                      {TEAM_PLAYERS[match.teamB]?.map(p => <option key={p} value={p}>{p}</option>)}
+                    </select>
+                  ))}
+                </div>
+                <input type="number" placeholder="" value={tieBreaker.teamBScore ?? ''} onChange={(e) => { const clone = { ...tieBreaker }; clone.teamBScore = parseInt(e.target.value) || 0; setTieBreaker(clone); }} style={{ width: '50px', padding: '0.25rem', border: '1px solid #d1d5db', borderRadius: '4px', textAlign: 'center', fontSize: '0.8rem', fontWeight: '600', minHeight: '28px' }} />
+              </div>
+            </div>
+          )}
         </div>
 
         <div style={{

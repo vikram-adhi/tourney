@@ -7,6 +7,88 @@ interface ViewMatchModalProps {
 }
 
 export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) {
+  // helper to render a category-like row (works for singles, doubles, and the 3v3 tie-breaker)
+  const renderCategoryRow = (
+    title: string,
+    leftPlayers: string[],
+    rightPlayers: string[],
+    leftScore?: number | '',
+    rightScore?: number | '',
+  ) => {
+    const aScore = typeof leftScore === 'number' ? leftScore : (leftScore === '' ? '' : undefined);
+    const bScore = typeof rightScore === 'number' ? rightScore : (rightScore === '' ? '' : undefined);
+
+    return (
+      <div
+        key={title}
+        className="vm-category"
+        style={{
+          display: 'flex',
+          flexDirection: 'row',
+          gap: '1rem',
+          alignItems: 'center',
+          padding: '0.75rem',
+          backgroundColor: '#f9fafb',
+          borderRadius: '6px',
+          fontSize: '0.875rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div className="vm-category-title" style={{ textAlign: 'left', width: '72px', flex: '0 0 72px' }}>
+          <div style={{ fontWeight: 600, color: '#374151' }}>{title}</div>
+        </div>
+
+        <div
+          className="vm-category-body"
+          style={{
+            gap: '1rem',
+            width: 'calc(100% - 72px)',
+            flex: '1 1 auto',
+            display: 'flex',
+            alignItems: 'center',
+          }}
+        >
+          <div className="vm-category-names" style={{ textAlign: 'left', flex: '1 1 auto' }}>
+            <div style={{ color: (aScore ?? 0) > (bScore ?? 0) ? '#059669' : '#6b7280' }}>
+              <div
+                style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
+                  gap: '0.5rem',
+                  alignItems: 'center',
+                }}
+              >
+                <div style={{ textAlign: 'left' }}>
+                  {leftPlayers.map((p, i) => (
+                    <div key={i} style={{ fontWeight: 500 }}>{p || `Player ${i + 1}`}</div>
+                  ))}
+                </div>
+
+                <div className="vm-vs" style={{ fontWeight: 500, color: '#374151', textAlign: 'center' }}>vs</div>
+
+                <div style={{ textAlign: 'left' }}>
+                  {rightPlayers.map((p, i) => (
+                    <div key={i} style={{ fontWeight: 500, textAlign: 'right', color: (bScore ?? 0) > (aScore ?? 0) ? '#059669' : '#6b7280' }}>{p || `Player ${i + 1}`}</div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="vm-score" style={{ textAlign: 'right', fontWeight: 700, fontSize: '1rem', minWidth: '64px', flex: '0 0 auto' }}>
+            <span className="vm-score-a" style={{ color: (aScore ?? 0) > (bScore ?? 0) ? '#059669' : '#6b7280' }}>
+              {typeof aScore === 'number' ? aScore : ''}
+            </span>
+            <span className="vm-score-sep" style={{ margin: '0 0.5rem', color: '#6b7280' }}>-</span>
+            <span className="vm-score-b" style={{ color: (bScore ?? 0) > (aScore ?? 0) ? '#059669' : '#6b7280' }}>
+              {typeof bScore === 'number' ? bScore : ''}
+            </span>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div
       className="vm-overlay"
@@ -49,7 +131,7 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
             borderBottom: '1px solid #eee',
           }}
         >
-          <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>
+          <h2 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, flex: 1, marginRight: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
             {match.teamA} vs {match.teamB}
           </h2>
           <button
@@ -85,113 +167,29 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
               const hasData = Boolean(
                 score && (score.teamAPlayer1 || score.teamBPlayer1 || score.teamAScore > 0 || score.teamBScore > 0)
               );
-              const isDoubles = isDoublesCategory(category);
 
               if (!hasData) return null;
 
-              return (
-                <div
-                  key={category}
-                  className="vm-category"
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'row',
-                    gap: '1rem',
-                    alignItems: 'center',
-                    padding: '0.75rem',
-                    backgroundColor: '#f9fafb',
-                    borderRadius: '6px',
-                    fontSize: '0.875rem',
-                    flexWrap: 'wrap',
-                  }}
-                >
-                  {/* Category title */}
-                  <div className="vm-category-title" style={{ textAlign: 'left', width: '100%' }}>
-                    <div style={{ fontWeight: 600, color: '#374151' }}>{getCategoryAbbreviation(category)}</div>
-                  </div>
+              const leftPlayers = isDoublesCategory(category) ? [score.teamAPlayer1 || 'Player 1', score.teamAPlayer2 || 'Player 2'] : [score.teamAPlayer1 || 'Player 1'];
+              const rightPlayers = isDoublesCategory(category) ? [score.teamBPlayer1 || 'Player 1', score.teamBPlayer2 || 'Player 2'] : [score.teamBPlayer1 || 'Player 2'];
 
-                  {/* Body: names (left) and score (right) */}
-                  <div
-                    className="vm-category-body"
-                    style={{
-                      gap: '1rem',
-                      width: '100%',
-                      flexWrap: 'wrap',
-                    }}
-                  >
-                    <div className="vm-category-names" style={{ textAlign: 'left', flex: '1 1 auto' }}>
-                      <div style={{ color: '#6b7280' }}>
-                        {isDoubles ? (
-                          <div
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
-                              gap: '0.5rem',
-                              alignItems: 'center',
-                            }}
-                          >
-                            <div style={{ textAlign: 'left' }}>
-                              <div style={{ fontWeight: 500, color: score.teamAScore > score.teamBScore ? '#059669' : '#6b7280' }}>
-                                {score.teamAPlayer1 || 'Player 1'}
-                              </div>
-                              <div style={{ fontWeight: 500, color: score.teamAScore > score.teamBScore ? '#059669' : '#6b7280' }}>
-                                {score.teamAPlayer2 || 'Player 2'}
-                              </div>
-                            </div>
-
-                            <div className="vm-vs" style={{ fontWeight: 500, color: '#374151', textAlign: 'center' }}>vs</div>
-
-                            <div style={{ textAlign: 'left' }}>
-                              <div style={{ fontWeight: 500, color: score.teamBScore > score.teamAScore ? '#059669' : '#6b7280' }}>
-                                {score.teamBPlayer1 || 'Player 1'}
-                              </div>
-                              <div style={{ fontWeight: 500, color: score.teamBScore > score.teamAScore ? '#059669' : '#6b7280' }}>
-                                {score.teamBPlayer2 || 'Player 2'}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div
-                            style={{
-                              display: 'grid',
-                              gridTemplateColumns: 'minmax(0,1fr) auto minmax(0,1fr)',
-                              gap: '0.5rem',
-                              alignItems: 'center',
-                            }}
-                        >
-                            <div style={{ textAlign: 'left' }}>
-                              <span style={{ fontWeight: 500, color: score.teamAScore > score.teamBScore ? '#059669' : '#6b7280' }}>
-                                {score.teamAPlayer1 || 'Player 1'}
-                              </span>
-                            </div>
-
-                            <div className="vm-vs" style={{ fontWeight: 500, color: '#374151', textAlign: 'center' }}>vs</div>
-
-                            <div style={{ textAlign: 'left' }}>
-                              <span style={{ fontWeight: 500, color: score.teamBScore > score.teamAScore ? '#059669' : '#6b7280' }}>
-                                {score.teamBPlayer1 || 'Player 2'}
-                              </span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    <div className="vm-score" style={{ textAlign: 'right', fontWeight: 700, fontSize: '1rem', minWidth: '64px', flex: '0 0 auto' }}>
-                      <span className="vm-score-a" style={{ color: score.teamAScore > score.teamBScore ? '#059669' : '#6b7280' }}>
-                        {score.teamAScore}
-                      </span>
-                      <span className="vm-score-sep" style={{ margin: '0 0.5rem', color: '#6b7280' }}>-</span>
-                      <span className="vm-score-b" style={{ color: score.teamBScore > score.teamAScore ? '#059669' : '#6b7280' }}>
-                        {score.teamBScore}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              );
+              return renderCategoryRow(getCategoryAbbreviation(category), leftPlayers, rightPlayers, score.teamAScore, score.teamBScore);
             })}
+
+            {/* Render tie-breaker via the same renderer if it exists and has data */}
+            {match.tieBreaker && ((match.tieBreaker.teamAPlayers || []).some(Boolean) || (match.tieBreaker.teamBPlayers || []).some(Boolean) || typeof match.tieBreaker.teamAScore === 'number' || typeof match.tieBreaker.teamBScore === 'number') && (
+              renderCategoryRow(
+                '3v3',
+                (match.tieBreaker.teamAPlayers || ['','','']).map((p,i) => p || `Player ${i+1}`),
+                (match.tieBreaker.teamBPlayers || ['','','']).map((p,i) => p || `Player ${i+1}`),
+                match.tieBreaker.teamAScore as any,
+                match.tieBreaker.teamBScore as any,
+              )
+            )}
           </div>
         </div>
+
+        
 
         {/* Footer */}
         <div style={{ padding: '0.75rem 1rem', borderTop: '1px solid #eee' }}>

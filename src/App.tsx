@@ -14,16 +14,16 @@ function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = login(username, password);
+    const success = await login(username, password);
     if (success) {
       setError('');
       setUsername('');
       setPassword('');
       onClose();
     } else {
-      setError('Invalid credentials. Try admin/admin123');
+      setError('Invalid credentials.');
     }
   };
 
@@ -200,7 +200,7 @@ function StandingsTable({ poolA, poolB }: { poolA: any[]; poolB: any[] }) {
 function MatchesList({ matches, isAdmin, onUpdateMatch }: { 
   matches: Match[]; 
   isAdmin: boolean; 
-  onUpdateMatch: (matchId: string, scores: Match['scores']) => void;
+  onUpdateMatch: (matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => void;
 }) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isViewing, setIsViewing] = useState(false);
@@ -268,7 +268,7 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
 
         {isExpanded && (
           <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
-        {matches.map((match) => {
+          {matches.map((match) => {
           const matchPlayed = isMatchPlayed(match);
           let matchesWon = { teamA: 0, teamB: 0 };
           let totalScores = { teamA: 0, teamB: 0 };
@@ -285,15 +285,29 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
             });
           }
 
+          // Prepare tie-break display as match score (1-0) with winner in green
+          let tbNode: null | JSX.Element = null;
+          if (matchPlayed && matchesWon.teamA === matchesWon.teamB && match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
+            // winner is determined by tieBreaker team scores; show match-style 1-0 with winner colored green
+            const teamAWonTB = match.tieBreaker.teamAScore > match.tieBreaker.teamBScore;
+            const leftStyle = { color: teamAWonTB ? '#059669' : '#374151' } as React.CSSProperties;
+            const rightStyle = { color: teamAWonTB ? '#374151' : '#059669' } as React.CSSProperties;
+            tbNode = (
+              <span style={{ marginLeft: '0.25rem' }}>
+                (TB: <span style={leftStyle}>{teamAWonTB ? '1' : '0'}</span> - <span style={rightStyle}>{teamAWonTB ? '0' : '1'}</span>)
+              </span>
+            );
+          }
+
           return (
             <div key={match.id} className="match-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: '0.375rem', alignItems: 'center', padding: '0.5rem', background: 'white', borderRadius: '4px', border: '1px solid #f3f4f6' }}>
-              <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>{match.teamA} vs {match.teamB}</div>
+              <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>{match.teamA} <span className="match-vs">vs</span> {match.teamB}</div>
 
               <div className="match-col match-stats" style={{ textAlign: 'left' }}>
                 {matchPlayed ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: '600' }}>
-                      Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>
+                      <div style={{ fontSize: '0.8rem', fontWeight: '600' }}>
+                      Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>{tbNode}
                     </div>
                     <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
                       Points: <span style={{ color: totalScores.teamA > totalScores.teamB ? '#059669' : '#6b7280' }}>{totalScores.teamA}</span> - <span style={{ color: totalScores.teamB > totalScores.teamA ? '#059669' : '#6b7280' }}>{totalScores.teamB}</span>
@@ -377,8 +391,8 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
             setSelectedMatch(null);
             setIsEditing(false);
           }}
-          onSave={(scores) => {
-            onUpdateMatch(selectedMatch.id, scores);
+          onSave={(scores, tieBreaker) => {
+            onUpdateMatch(selectedMatch.id, scores, tieBreaker);
             setSelectedMatch(null);
             setIsEditing(false);
           }}
@@ -392,7 +406,7 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
 function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: { 
   knockoutMatches: KnockoutMatch[]; 
   isAdmin: boolean; 
-  onUpdateMatch: (matchId: string, scores: KnockoutMatch['scores']) => void;
+  onUpdateMatch: (matchId: string, scores: KnockoutMatch['scores'], tieBreaker?: Match['tieBreaker']) => void;
 }) {
   const [selectedMatch, setSelectedMatch] = useState<KnockoutMatch | null>(null);
   const [isViewing, setIsViewing] = useState(false);
@@ -444,6 +458,18 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
               });
             }
 
+            let tbNode: null | JSX.Element = null;
+            if (matchPlayed && matchesWon.teamA === matchesWon.teamB && match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
+              const teamAWonTB = match.tieBreaker.teamAScore > match.tieBreaker.teamBScore;
+              const leftStyle = { color: teamAWonTB ? '#059669' : '#374151' } as React.CSSProperties;
+              const rightStyle = { color: teamAWonTB ? '#374151' : '#059669' } as React.CSSProperties;
+              tbNode = (
+                <span style={{ marginLeft: '0.25rem' }}>
+                  (TB: <span style={leftStyle}>{teamAWonTB ? '1' : '0'}</span> - <span style={rightStyle}>{teamAWonTB ? '0' : '1'}</span>)
+                </span>
+              );
+            }
+
             const teamADisplay = match.teamA === "TBD" ? "TBD" : match.teamA;
             const teamBDisplay = match.teamB === "TBD" ? "TBD" : match.teamB;
 
@@ -466,7 +492,7 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
                   {matchPlayed ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                       <div style={{ fontSize: '0.8rem', fontWeight: '600' }}>
-                        Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>
+                        Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>{tbNode}
                       </div>
                       <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
                         Points: <span style={{ color: totalScores.teamA > totalScores.teamB ? '#059669' : '#6b7280' }}>{totalScores.teamA}</span> - <span style={{ color: totalScores.teamB > totalScores.teamA ? '#059669' : '#6b7280' }}>{totalScores.teamB}</span>
@@ -560,8 +586,8 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
             setSelectedMatch(null);
             setIsEditing(false);
           }}
-          onSave={(scores) => {
-            onUpdateMatch(selectedMatch.id, scores);
+          onSave={(scores, tieBreaker) => {
+            onUpdateMatch(selectedMatch.id, scores, tieBreaker);
             setSelectedMatch(null);
             setIsEditing(false);
           }}
@@ -607,10 +633,10 @@ function AppContent() {
             </div>
             <div>
               <h1 style={{ margin: 0, fontSize: '1rem', fontWeight: '700' }}>
-                Internal Tournament
+                Racquet Rumble Badminton Tournament
               </h1>
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#6b7280' }}>
-                Pool Stage
+                Season 1
               </p>
             </div>
           </div>

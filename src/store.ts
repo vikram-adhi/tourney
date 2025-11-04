@@ -51,6 +51,45 @@ class TournamentStore {
     this.loadData();
   }
 
+  // Map legacy placeholder names (Team 1..Team 8) to current team names
+  private LEGACY_NAME_MAP: Record<string, string> = {
+    'Team 1': 'Lord of the strings',
+    'Team 2': 'The BaddyVerse',
+    'Team 3': 'Silicon Swat',
+    'Team 4': 'Herricanes',
+    'Team 5': 'Rising Phoenix',
+    'Team 6': 'Mighty Spartans',
+    'Team 7': 'Racket Blitz',
+    'Team 8': 'SmashOps'
+  };
+
+  // Ensure every match has a tieBreaker object so it renders and persists consistently
+  private ensureTieBreakers(matches: Match[]) {
+    return matches.map(m => {
+      if (!m.tieBreaker) {
+        return {
+          ...m,
+          tieBreaker: { teamAPlayers: ['', '', ''], teamBPlayers: ['', '', ''], teamAScore: undefined, teamBScore: undefined }
+        } as Match;
+      }
+      // if tieBreaker exists but players array missing, normalize shape
+      const tb = m.tieBreaker as any;
+      const normalized = {
+        teamAPlayers: Array.isArray(tb.teamAPlayers) ? tb.teamAPlayers.slice(0,3).concat(Array(3 - (tb.teamAPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+        teamBPlayers: Array.isArray(tb.teamBPlayers) ? tb.teamBPlayers.slice(0,3).concat(Array(3 - (tb.teamBPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+        teamAScore: typeof tb.teamAScore === 'number' ? tb.teamAScore : undefined,
+        teamBScore: typeof tb.teamBScore === 'number' ? tb.teamBScore : undefined,
+      };
+      return { ...m, tieBreaker: normalized } as Match;
+    });
+  }
+
+  private mapLegacyMatchNames(match: any): Match {
+    const mappedA = (typeof match.teamA === 'string' && this.LEGACY_NAME_MAP[match.teamA]) ? this.LEGACY_NAME_MAP[match.teamA] : match.teamA;
+    const mappedB = (typeof match.teamB === 'string' && this.LEGACY_NAME_MAP[match.teamB]) ? this.LEGACY_NAME_MAP[match.teamB] : match.teamB;
+    return { ...match, teamA: mappedA, teamB: mappedB } as Match;
+  }
+
   private async loadData() {
     try {
       this.isLoading = true;
@@ -61,14 +100,18 @@ class TournamentStore {
           console.warn('Supabase read failed, falling back to localStorage:', (error as any).message || error);
           this.loadFromLocalStorage();
         } else if (data && data.payload) {
-          if (data.payload.poolMatches && Array.isArray(data.payload.poolMatches)) {
-            const tournamentData = data.payload as TournamentData;
-            this.matches = tournamentData.poolMatches;
-            this.knockoutMatches = tournamentData.knockoutMatches || [];
+      if (data.payload.poolMatches && Array.isArray(data.payload.poolMatches)) {
+        const tournamentData = data.payload as TournamentData;
+            // map legacy names and ensure tieBreaker shape
+            this.matches = this.ensureTieBreakers((tournamentData.poolMatches || []).map(m => this.mapLegacyMatchNames(m as any)));
+            this.knockoutMatches = (tournamentData.knockoutMatches || []).map(k => ({ ...k } as KnockoutMatch));
             this.initializeKnockoutMatches();
-          } else if (Array.isArray(data.payload) && data.payload.length > 0) {
-            this.matches = data.payload as Match[];
+            // persist normalized names locally so UI shows updated labels next load
+            await this.saveData();
+      } else if (Array.isArray(data.payload) && data.payload.length > 0) {
+            this.matches = this.ensureTieBreakers((data.payload as any[]).map(m => this.mapLegacyMatchNames(m)));
             this.initializeKnockoutMatches();
+            await this.saveData();
           } else {
             this.matches = generateAllMatches();
             this.initializeKnockoutMatches();
@@ -93,17 +136,19 @@ class TournamentStore {
 
   private loadFromLocalStorage() {
     const savedData = localStorage.getItem('tournament-data');
-    if (savedData) {
+        if (savedData) {
       try {
         const parsedData = JSON.parse(savedData);
         if (parsedData.poolMatches && Array.isArray(parsedData.poolMatches)) {
           const tournamentData = parsedData as TournamentData;
-          this.matches = tournamentData.poolMatches;
-          this.knockoutMatches = tournamentData.knockoutMatches || [];
+          this.matches = this.ensureTieBreakers((tournamentData.poolMatches || []).map(m => this.mapLegacyMatchNames(m as any)));
+          this.knockoutMatches = (tournamentData.knockoutMatches || []).map(k => ({ ...k } as KnockoutMatch));
           this.initializeKnockoutMatches();
+          this.saveToLocalStorage();
         } else if (Array.isArray(parsedData)) {
-          this.matches = parsedData;
+          this.matches = this.ensureTieBreakers((parsedData as any[]).map(m => this.mapLegacyMatchNames(m)));
           this.initializeKnockoutMatches();
+          this.saveToLocalStorage();
         } else {
           this.matches = generateAllMatches();
           this.initializeKnockoutMatches();
@@ -238,10 +283,12 @@ class TournamentStore {
     return calculateStandings(this.matches);
   }
 
-  updateMatch(matchId: string, scores: Match['scores']) {
+  updateMatch(matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) {
     const matchIndex = this.matches.findIndex(m => m.id === matchId);
     if (matchIndex !== -1) {
-      this.matches[matchIndex] = { ...this.matches[matchIndex], scores };
+      const updated = { ...this.matches[matchIndex], scores } as Match;
+      if (tieBreaker) updated.tieBreaker = tieBreaker;
+      this.matches[matchIndex] = updated;
       this.initializeKnockoutMatches();
       this.saveData();
       this.notify();
@@ -258,11 +305,13 @@ class TournamentStore {
     }
   }
 
-  async updateMatchAPI(matchId: string, scores: Match['scores']) {
+  async updateMatchAPI(matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) {
     try {
       const matchIndex = this.matches.findIndex(m => m.id === matchId);
       if (matchIndex !== -1) {
-        this.matches[matchIndex] = { ...this.matches[matchIndex], scores };
+        const updated = { ...this.matches[matchIndex], scores } as Match;
+        if (tieBreaker) updated.tieBreaker = tieBreaker;
+        this.matches[matchIndex] = updated;
         this.initializeKnockoutMatches();
         await this.saveData();
         this.notify();
@@ -271,7 +320,7 @@ class TournamentStore {
       }
     } catch (error) {
       console.error('Failed to update via API, using local update:', error);
-      this.updateMatch(matchId, scores);
+      this.updateMatch(matchId, scores, tieBreaker);
     }
   }
 
@@ -325,7 +374,7 @@ export function useTournamentStore() {
     knockoutMatches: tournamentStore.getKnockoutMatches(),
     standings: tournamentStore.getStandings(),
     isLoading: tournamentStore.loading,
-    updateMatch: (matchId: string, scores: Match['scores']) => tournamentStore.updateMatchAPI(matchId, scores),
+  updateMatch: (matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => tournamentStore.updateMatchAPI(matchId, scores, tieBreaker),
     updateKnockoutMatch: (matchId: string, scores: KnockoutMatch['scores']) => tournamentStore.updateKnockoutMatchAPI(matchId, scores),
     resetTournament: () => tournamentStore.resetTournament(),
   };

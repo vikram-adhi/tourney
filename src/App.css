@@ -52,6 +52,44 @@ table {
   text-overflow: ellipsis;
 }
 
+/* color used for Edit button and matching 'vs' markers */
+:root {
+  --edit-blue: #2563eb;
+}
+
+.match-vs {
+  color: var(--edit-blue);
+  font-weight: 600;
+  margin: 0 0.35rem;
+}
+
+/* View modal vs color to match edit button */
+.vm-vs, .vm-vs * {
+  color: var(--edit-blue) !important;
+}
+
+/* Edit modal: ensure select elements do not expand the layout when option text is long */
+.edit-modal select {
+  min-width: 0 !important; /* allow select to shrink inside flex/grid */
+  max-width: 100% !important;
+}
+
+.edit-modal select option {
+  white-space: nowrap; /* show full option in dropdown itself */
+}
+
+.edit-modal .select-wrapper,
+.edit-modal select {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.edit-modal .select-wrapper {
+  display: inline-block;
+  max-width: 100%;
+}
+
 @media (max-width: 768px) {
   /* on medium screens reduce actions column */
   .match-row {
