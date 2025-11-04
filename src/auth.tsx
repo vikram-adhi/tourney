@@ -17,44 +17,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAdmin(adminStatus);
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
-    try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
-      });
+  // Simple in-app login (client-side). This intentionally uses a hardcoded
+  // username/password so the app does not depend on Netlify functions or
+  // environment variables during local development. Username/password:
+  //   admin_RRBT / hpeblr
+  // NOTE: This is less secure than server-side auth. If you later deploy to
+  // production and want to protect admin access, replace this with a server
+  // validation flow.
+  const ADMIN_USER = 'admin_RRBT';
+  const ADMIN_PASS = 'hpeblr';
 
-      if (res.status === 200) {
-        localStorage.setItem('isAdmin', 'true');
-        setIsAdmin(true);
-        return true;
-      }
-      // If server returns non-200, fall back to dev-only client env vars when present
-      // (Vite exposes variables prefixed with VITE_). This is only a local convenience.
-      const devUser = import.meta.env.VITE_ADMIN_USER as string | undefined;
-      const devPass = import.meta.env.VITE_ADMIN_PASS as string | undefined;
-      if (devUser && devPass) {
-        if (username === devUser && password === devPass) {
-          localStorage.setItem('isAdmin', 'true');
-          setIsAdmin(true);
-          return true;
-        }
-      }
-      return false;
-    } catch (err) {
-      // network error - try vite env fallback for local dev convenience
-      const devUser = import.meta.env.VITE_ADMIN_USER as string | undefined;
-      const devPass = import.meta.env.VITE_ADMIN_PASS as string | undefined;
-      if (devUser && devPass) {
-        if (username === devUser && password === devPass) {
-          localStorage.setItem('isAdmin', 'true');
-          setIsAdmin(true);
-          return true;
-        }
-      }
-      return false;
+  const login = async (username: string, password: string): Promise<boolean> => {
+    const ok = username === ADMIN_USER && password === ADMIN_PASS;
+    if (ok) {
+      localStorage.setItem('isAdmin', 'true');
+      setIsAdmin(true);
+      return true;
     }
+    return false;
   };
 
   const logout = () => {
