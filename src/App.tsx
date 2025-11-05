@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { useTournamentStore } from './store';
 import type { Match, KnockoutMatch } from './types';
-import { isMatchPlayed, isKnockoutMatchComplete } from './types';
+import { isMatchPlayed, isKnockoutMatchComplete, arePoolMatchesComplete } from './types';
 import ViewMatchModal from './components/ViewMatchModal';
 import EditMatchModal from './components/EditMatchModal';
 import './App.css';
@@ -28,6 +28,7 @@ function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
   };
 
   if (!isOpen) return null;
+
 
   return (
     <div style={{
@@ -144,12 +145,12 @@ function LoginModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void 
 }
 
 // Standings Table Component
-function StandingsTable({ poolA, poolB }: { poolA: any[]; poolB: any[] }) {
-  const PoolTable = ({ title, data }: { title: string; data: any[] }) => {
+function StandingsTable({ poolA, poolB, poolAComplete, poolBComplete }: { poolA: any[]; poolB: any[]; poolAComplete: boolean; poolBComplete: boolean }) {
+  const PoolTable = ({ title, data, complete }: { title: string; data: any[]; complete: boolean }) => {
     // Sort by points descending. If equal, keep existing order (stable).
     const sortedData = [...data].sort((a, b) => b.points - a.points);
 
-    return (
+  return (
       <div style={{
         backgroundColor: 'white',
         padding: '1rem',
@@ -167,15 +168,23 @@ function StandingsTable({ poolA, poolB }: { poolA: any[]; poolB: any[] }) {
               <th style={{ padding: '0.5rem', textAlign: 'center', fontWeight: '600', fontSize: '0.875rem' }}>W</th>
               <th style={{ padding: '0.5rem', textAlign: 'center', fontWeight: '600', fontSize: '0.875rem' }}>L</th>
               <th style={{ padding: '0.5rem', textAlign: 'center', fontWeight: '600', fontSize: '0.875rem' }}>Pts</th>
+              <th style={{ padding: '0.5rem', textAlign: 'center', fontWeight: '600', fontSize: '0.75rem' }}>Events (wins)</th>
+              <th style={{ padding: '0.5rem', textAlign: 'center', fontWeight: '600', fontSize: '0.75rem' }}>Points (wins)</th>
             </tr>
           </thead>
-          <tbody>
-            {sortedData.map((row) => (
+            <tbody>
+            {sortedData.map((row, idx) => (
               <tr key={row.team}>
-                <td style={{ padding: '0.5rem', fontWeight: '600', fontSize: '0.875rem' }}>{row.team}</td>
+                <td style={{ padding: '0.5rem', fontWeight: '600', fontSize: '0.875rem' }}>
+                  {/* show ordinal badges for 1st/2nd and green for qualified teams only when pool is complete */}
+                  <span style={{ marginRight: '0.4rem' }}>{complete && idx === 0 ? '🥇' : complete && idx === 1 ? '🥈' : ''}</span>
+                  <span style={{ color: complete && (idx === 0 || idx === 1) ? '#059669' : '#111827' }}>{row.team}</span>
+                </td>
                 <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.875rem' }}>{row.wins}</td>
                 <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.875rem' }}>{row.losses}</td>
                 <td style={{ padding: '0.5rem', textAlign: 'center', fontWeight: '700', fontSize: '0.875rem' }}>{row.points}</td>
+                <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.875rem' }}>{row.eventsWonInVictories ?? 0}</td>
+                <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.875rem' }}>{row.pointsInVictories ?? 0}</td>
               </tr>
             ))}
           </tbody>
@@ -190,17 +199,21 @@ function StandingsTable({ poolA, poolB }: { poolA: any[]; poolB: any[] }) {
       gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
       gap: '1.5rem'
     }}>
-      <PoolTable title="Pool A Standings" data={poolA} />
-      <PoolTable title="Pool B Standings" data={poolB} />
+      <PoolTable title="Pool A Standings" data={poolA} complete={poolAComplete} />
+      <PoolTable title="Pool B Standings" data={poolB} complete={poolBComplete} />
     </div>
   );
 }
 
 // Matches List Component
-function MatchesList({ matches, isAdmin, onUpdateMatch }: { 
+function MatchesList({ matches, isAdmin, onUpdateMatch, qualifiedA, qualifiedB, poolAComplete, poolBComplete }: { 
   matches: Match[]; 
   isAdmin: boolean; 
   onUpdateMatch: (matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => void;
+  qualifiedA: string[];
+  qualifiedB: string[];
+  poolAComplete: boolean;
+  poolBComplete: boolean;
 }) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isViewing, setIsViewing] = useState(false);
@@ -299,9 +312,28 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
             );
           }
 
-          return (
+            // determine per-match winner so we can color the winner green immediately
+            const poolQualified = title.includes('A') ? qualifiedA : qualifiedB;
+            const poolComplete = title.includes('A') ? poolAComplete : poolBComplete;
+
+            // decide match winner (teamA/teamB) based on matchesWon and tieBreaker
+            let matchWinner: 'A' | 'B' | null = null;
+            if (matchPlayed) {
+              if (matchesWon.teamA > matchesWon.teamB) matchWinner = 'A';
+              else if (matchesWon.teamB > matchesWon.teamA) matchWinner = 'B';
+              else if (match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
+                if (match.tieBreaker.teamAScore > match.tieBreaker.teamBScore) matchWinner = 'A';
+                else if (match.tieBreaker.teamBScore > match.tieBreaker.teamAScore) matchWinner = 'B';
+              }
+            }
+
+            return (
             <div key={match.id} className="match-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: '0.375rem', alignItems: 'center', padding: '0.5rem', background: 'white', borderRadius: '4px', border: '1px solid #f3f4f6' }}>
-              <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>{match.teamA} <span className="match-vs">vs</span> {match.teamB}</div>
+              <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>
+                <span style={{ color: matchWinner === 'A' ? '#059669' : '#111827' }}>{match.teamA}</span>
+                <span className="match-vs" style={{ margin: '0 0.35rem' }}>vs</span>
+                <span style={{ color: matchWinner === 'B' ? '#059669' : '#111827' }}>{match.teamB}</span>
+              </div>
 
               <div className="match-col match-stats" style={{ textAlign: 'left' }}>
                 {matchPlayed ? (
@@ -603,6 +635,13 @@ function AppContent() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'knockouts'>('standings');
 
+  // compute qualified teams (top2) for display in matches and standings
+  const qualifiedA = standings.poolA ? standings.poolA.slice(0, 2).map((s: any) => s.team) : [];
+  const qualifiedB = standings.poolB ? standings.poolB.slice(0, 2).map((s: any) => s.team) : [];
+
+  const poolAComplete = arePoolMatchesComplete(matches, 'A');
+  const poolBComplete = arePoolMatchesComplete(matches, 'B');
+
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
       {/* Header */}
@@ -757,9 +796,9 @@ function AppContent() {
 
         {/* Tab Content */}
         {activeTab === 'standings' ? (
-          <StandingsTable poolA={standings.poolA} poolB={standings.poolB} />
+          <StandingsTable poolA={standings.poolA} poolB={standings.poolB} poolAComplete={poolAComplete} poolBComplete={poolBComplete} />
         ) : activeTab === 'matches' ? (
-          <MatchesList matches={matches} isAdmin={isAdmin} onUpdateMatch={updateMatch} />
+          <MatchesList matches={matches} isAdmin={isAdmin} onUpdateMatch={updateMatch} qualifiedA={qualifiedA} qualifiedB={qualifiedB} poolAComplete={poolAComplete} poolBComplete={poolBComplete} />
         ) : (
           <KnockoutMatches knockoutMatches={knockoutMatches} isAdmin={isAdmin} onUpdateMatch={updateKnockoutMatch} />
         )}

@@ -3,7 +3,7 @@ import type { Match, Standing, KnockoutMatch } from './types';
 import {
   generateAllMatches,
   calculateStandings,
-  areAllPoolMatchesComplete,
+  arePoolMatchesComplete,
   getQualifiedTeams,
   generateKnockoutMatches,
   getKnockoutMatchWinner,
@@ -186,8 +186,13 @@ class TournamentStore {
     // Ensure match.pool fields align with current pool membership (fixes persisted legacy pool tags)
     this.normalizeMatchPools(this.matches);
 
-    if (areAllPoolMatchesComplete(this.matches)) {
-      const standings = this.getStandings();
+    // If both pools are complete, fill all semi slots. If only one pool is complete,
+    // place that pool's top2 into their semi slots and leave the opponents as TBD.
+    const standings = this.getStandings();
+    const poolAComplete = arePoolMatchesComplete(this.matches, 'A');
+    const poolBComplete = arePoolMatchesComplete(this.matches, 'B');
+
+    if (poolAComplete && poolBComplete) {
       const { poolATop2, poolBTop2 } = getQualifiedTeams(standings);
       const generatedKnockouts = generateKnockoutMatches(poolATop2, poolBTop2);
 
@@ -202,6 +207,25 @@ class TournamentStore {
         this.knockoutMatches = generatedKnockouts;
       }
 
+      this.updateFinalsTeams();
+    } else if (poolAComplete || poolBComplete) {
+      // One pool is complete: compute its top2 and insert into the semis; leave the other pool as TBD
+      const poolATop2: [any, any] = poolAComplete ? getQualifiedTeams(standings).poolATop2 : ['TBD', 'TBD'];
+      const poolBTop2: [any, any] = poolBComplete ? getQualifiedTeams(standings).poolBTop2 : ['TBD', 'TBD'];
+      const generatedKnockouts = generateKnockoutMatches(poolATop2, poolBTop2);
+
+      if (this.knockoutMatches.length > 0) {
+        this.knockoutMatches.forEach((existing, index) => {
+          if (index < generatedKnockouts.length) {
+            existing.teamA = generatedKnockouts[index].teamA;
+            existing.teamB = generatedKnockouts[index].teamB;
+          }
+        });
+      } else {
+        this.knockoutMatches = generatedKnockouts;
+      }
+
+      // Final teams remain TBD until semis are played
       this.updateFinalsTeams();
     } else {
       this.knockoutMatches = generateKnockoutMatches(['TBD', 'TBD'], ['TBD', 'TBD']);

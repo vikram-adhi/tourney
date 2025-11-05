@@ -54,6 +54,10 @@ export interface Standing {
   wins: number;
   losses: number;
   points: number;
+  // Sum of events (categories) won across only the matches this team won
+  eventsWonInVictories: number;
+  // Sum of total points scored across only the matches this team won
+  pointsInVictories: number;
 }
 
 // Team players data
@@ -163,17 +167,17 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
   
   // Initialize all teams
   [...POOL_A_TEAMS, ...POOL_B_TEAMS].forEach(team => {
-    standings[team] = { team, wins: 0, losses: 0, points: 0 };
+    standings[team] = { team, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
   });
 
   // Also initialize any team names that appear in matches but are not in the POOL lists
   matches.forEach(m => {
     if (m.teamA && !(m.teamA in standings)) {
       // cast because loaded matches may contain earlier team strings that match TeamName at runtime
-      (standings as any)[m.teamA] = { team: m.teamA as TeamName, wins: 0, losses: 0, points: 0 };
+      (standings as any)[m.teamA] = { team: m.teamA as TeamName, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
     }
     if (m.teamB && !(m.teamB in standings)) {
-      (standings as any)[m.teamB] = { team: m.teamB as TeamName, wins: 0, losses: 0, points: 0 };
+      (standings as any)[m.teamB] = { team: m.teamB as TeamName, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
     }
   });
   
@@ -201,46 +205,64 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
 
     // Determine match winner by category wins; if tied, break tie by total points
     if (teamAWins > teamBWins) {
-      if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-      if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+      if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+      if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
       standings[match.teamA]!.wins++;
       standings[match.teamA]!.points += 1;
       standings[match.teamB]!.losses++;
+      // accumulate custom tie-break metrics for winning matches
+      standings[match.teamA]!.eventsWonInVictories += teamAWins;
+      standings[match.teamA]!.pointsInVictories += totalPointsA;
     } else if (teamBWins > teamAWins) {
-      if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-      if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+      if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+      if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
       standings[match.teamB]!.wins++;
       standings[match.teamB]!.points += 1;
       standings[match.teamA]!.losses++;
+      // accumulate custom tie-break metrics for winning matches
+      standings[match.teamB]!.eventsWonInVictories += teamBWins;
+      standings[match.teamB]!.pointsInVictories += totalPointsB;
     } else {
       // Category wins are equal — use total points as tiebreaker
       if (totalPointsA > totalPointsB) {
-        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
         standings[match.teamA]!.wins++;
         standings[match.teamA]!.points += 1;
         standings[match.teamB]!.losses++;
+        // accumulate custom tie-break metrics for winning matches
+        standings[match.teamA]!.eventsWonInVictories += teamAWins;
+        standings[match.teamA]!.pointsInVictories += totalPointsA;
       } else if (totalPointsB > totalPointsA) {
-        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+        if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+        if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
         standings[match.teamB]!.wins++;
         standings[match.teamB]!.points += 1;
         standings[match.teamA]!.losses++;
+        // accumulate custom tie-break metrics for winning matches
+        standings[match.teamB]!.eventsWonInVictories += teamBWins;
+        standings[match.teamB]!.pointsInVictories += totalPointsB;
       } else {
         // Fully tied on categories and points. If a tieBreaker result exists, use it to award the win.
         if (match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
           if (match.tieBreaker.teamAScore > match.tieBreaker.teamBScore) {
-            if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-            if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+            if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+            if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
             standings[match.teamA]!.wins++;
             standings[match.teamA]!.points += 1;
             standings[match.teamB]!.losses++;
+            // accumulate custom tie-break metrics for winning matches
+            standings[match.teamA]!.eventsWonInVictories += teamAWins; // categories were tied, but count categories won
+            standings[match.teamA]!.pointsInVictories += totalPointsA;
           } else if (match.tieBreaker.teamBScore > match.tieBreaker.teamAScore) {
-            if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0 };
-            if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0 };
+            if (!standings[match.teamA]) standings[match.teamA] = { team: match.teamA, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+            if (!standings[match.teamB]) standings[match.teamB] = { team: match.teamB, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
             standings[match.teamB]!.wins++;
             standings[match.teamB]!.points += 1;
             standings[match.teamA]!.losses++;
+            // accumulate custom tie-break metrics for winning matches
+            standings[match.teamB]!.eventsWonInVictories += teamBWins;
+            standings[match.teamB]!.pointsInVictories += totalPointsB;
           } else {
             // tieBreak also tied: leave unresolved (no points awarded)
           }
@@ -251,10 +273,22 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
     }
   });
   
+  // Build arrays for each pool and sort according to qualification criteria so the
+  // UI points table updates order immediately when scores change.
   const poolA = POOL_A_TEAMS.map(team => standings[team]!);
   const poolB = POOL_B_TEAMS.map(team => standings[team]!);
-  
-  return { poolA, poolB };
+
+  function sortForDisplay(pool: Standing[]) {
+    return [...pool].sort((a, b) => {
+      if (b.points !== a.points) return b.points - a.points;
+      if (b.eventsWonInVictories !== a.eventsWonInVictories) return b.eventsWonInVictories - a.eventsWonInVictories;
+      if (b.pointsInVictories !== a.pointsInVictories) return b.pointsInVictories - a.pointsInVictories;
+      // deterministic fallback
+      return a.team.localeCompare(b.team);
+    });
+  }
+
+  return { poolA: sortForDisplay(poolA), poolB: sortForDisplay(poolB) };
 }
 
 // Check if match has been played (has any scores)
@@ -279,21 +313,60 @@ export function areAllPoolMatchesComplete(matches: Match[]): boolean {
   return matches.every(match => isMatchComplete(match));
 }
 
+// Check if all matches for a particular pool are complete
+export function arePoolMatchesComplete(matches: Match[], pool: "A" | "B"): boolean {
+  const poolMatches = matches.filter(m => m.pool === pool);
+  if (poolMatches.length === 0) return false;
+  return poolMatches.every(isMatchComplete);
+}
+
 // Get top 2 teams from each pool based on standings
 export function getQualifiedTeams(standings: { poolA: Standing[]; poolB: Standing[] }): {
   poolATop2: [TeamName, TeamName];
   poolBTop2: [TeamName, TeamName];
 } {
-  // Sort by points descending, then by wins descending
-  const sortedPoolA = [...standings.poolA].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return b.wins - a.wins;
-  });
-  
-  const sortedPoolB = [...standings.poolB].sort((a, b) => {
-    if (b.points !== a.points) return b.points - a.points;
-    return b.wins - a.wins;
-  });
+  // Deterministic sort for qualification:
+  // 1) points desc
+  // 2) head-to-head points among tied teams (mini-league)
+  // 3) point difference (totalFor - totalAgainst)
+  // 4) totalFor (higher scored points)
+  // 5) fallback to wins
+  function sortPool(pool: Standing[]): Standing[] {
+    // First, sort by points (match wins) desc and group ties
+    const byPoints = [...pool].sort((a, b) => b.points - a.points);
+    const result: Standing[] = [];
+
+    for (let i = 0; i < byPoints.length;) {
+      const j = byPoints.findIndex((s, idx) => idx >= i && s.points !== byPoints[i].points);
+      const end = j === -1 ? byPoints.length : j;
+      const group = byPoints.slice(i, end);
+
+      if (group.length === 1) {
+        result.push(group[0]);
+      } else {
+        // Apply custom tiebreaker for teams tied on points:
+        // 1) eventsWonInVictories (higher better)
+        // 2) pointsInVictories (higher better)
+        // Fallbacks: wins, team name (deterministic)
+        group.sort((a, b) => {
+          if (b.eventsWonInVictories !== a.eventsWonInVictories) return b.eventsWonInVictories - a.eventsWonInVictories;
+          if (b.pointsInVictories !== a.pointsInVictories) return b.pointsInVictories - a.pointsInVictories;
+          if (b.wins !== a.wins) return b.wins - a.wins;
+          return a.team.localeCompare(b.team);
+        });
+
+        // If further ties remain after the metrics above, sorting by criteria order is deterministic
+        result.push(...group);
+      }
+
+      i = end;
+    }
+
+    return result;
+  }
+
+  const sortedPoolA = sortPool(standings.poolA);
+  const sortedPoolB = sortPool(standings.poolB);
 
   return {
     poolATop2: [sortedPoolA[0].team, sortedPoolA[1].team],
