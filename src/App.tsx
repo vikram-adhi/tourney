@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { useTournamentStore } from './store';
 import type { Match, KnockoutMatch } from './types';
-import { isMatchPlayed, isKnockoutMatchComplete, arePoolMatchesComplete } from './types';
+import { isMatchPlayed, isKnockoutMatchComplete, arePoolMatchesComplete, getKnockoutMatchWinner, determineWinnerFromScores } from './types';
 import ViewMatchModal from './components/ViewMatchModal';
 import EditMatchModal from './components/EditMatchModal';
 import './App.css';
@@ -279,25 +279,30 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
           <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {matches.map((match) => {
           const matchPlayed = isMatchPlayed(match);
+
+          // Compute category wins and total points for display
           let matchesWon = { teamA: 0, teamB: 0 };
           let totalScores = { teamA: 0, teamB: 0 };
-
           if (matchPlayed) {
             match.scores.forEach(score => {
-              if (score.teamAScore > score.teamBScore) {
-                matchesWon.teamA++;
-              } else if (score.teamBScore > score.teamAScore) {
-                matchesWon.teamB++;
-              }
+              if (score.teamAScore > score.teamBScore) matchesWon.teamA++;
+              else if (score.teamBScore > score.teamAScore) matchesWon.teamB++;
               totalScores.teamA += score.teamAScore;
               totalScores.teamB += score.teamBScore;
             });
           }
 
-          // Prepare tie-break display as match score (1-0) with winner in green
+          // Build a normalized scores array and let the shared helper decide the winner
+          let matchWinner: 'A' | 'B' | null = null;
+          if (matchPlayed) {
+            const result = determineWinnerFromScores(match.scores, match.tieBreaker ? { teamAScore: match.tieBreaker.teamAScore, teamBScore: match.tieBreaker.teamBScore } : undefined);
+            if (result === 'A') matchWinner = 'A';
+            else if (result === 'B') matchWinner = 'B';
+          }
+
+          // Prepare tie-break display as match score (1-0) with winner in green (same as before)
           let tbNode: null | JSX.Element = null;
           if (matchPlayed && matchesWon.teamA === matchesWon.teamB && match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
-            // winner is determined by tieBreaker team scores; show match-style 1-0 with winner colored green
             const teamAWonTB = match.tieBreaker.teamAScore > match.tieBreaker.teamBScore;
             const leftStyle = { color: teamAWonTB ? '#059669' : '#374151' } as React.CSSProperties;
             const rightStyle = { color: teamAWonTB ? '#374151' : '#059669' } as React.CSSProperties;
@@ -307,18 +312,6 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
               </span>
             );
           }
-
-            // determine per-match winner so we can color the winner green immediately
-            // decide match winner (teamA/teamB) based on matchesWon and tieBreaker
-            let matchWinner: 'A' | 'B' | null = null;
-            if (matchPlayed) {
-              if (matchesWon.teamA > matchesWon.teamB) matchWinner = 'A';
-              else if (matchesWon.teamB > matchesWon.teamA) matchWinner = 'B';
-              else if (match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
-                if (match.tieBreaker.teamAScore > match.tieBreaker.teamBScore) matchWinner = 'A';
-                else if (match.tieBreaker.teamBScore > match.tieBreaker.teamAScore) matchWinner = 'B';
-              }
-            }
 
             return (
             <div key={match.id} className="match-row" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 88px', gap: '0.375rem', alignItems: 'center', padding: '0.5rem', background: 'white', borderRadius: '4px', border: '1px solid #f3f4f6' }}>
@@ -468,16 +461,13 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
         <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {matches.map((match) => {
             const matchPlayed = isKnockoutMatchComplete(match);
+            // Compute category wins and total points for display and use shared helper for winner
             let matchesWon = { teamA: 0, teamB: 0 };
             let totalScores = { teamA: 0, teamB: 0 };
-
             if (matchPlayed) {
               match.scores.forEach(score => {
-                if (score.teamAScore > score.teamBScore) {
-                  matchesWon.teamA++;
-                } else if (score.teamBScore > score.teamAScore) {
-                  matchesWon.teamB++;
-                }
+                if (score.teamAScore > score.teamBScore) matchesWon.teamA++;
+                else if (score.teamBScore > score.teamAScore) matchesWon.teamB++;
                 totalScores.teamA += score.teamAScore;
                 totalScores.teamB += score.teamBScore;
               });
@@ -495,8 +485,13 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
               );
             }
 
+            // Use shared logic to determine knockout winner (A/B/TBD)
+            const koResult = matchPlayed ? determineWinnerFromScores(match.scores, match.tieBreaker ? { teamAScore: match.tieBreaker.teamAScore, teamBScore: match.tieBreaker.teamBScore } : undefined) : 'TBD';
+            const koWinner = koResult === 'A' ? match.teamA : koResult === 'B' ? match.teamB : 'TBD';
+
             const teamADisplay = match.teamA === "TBD" ? "TBD" : match.teamA;
             const teamBDisplay = match.teamB === "TBD" ? "TBD" : match.teamB;
+            // const koWinner = getKnockoutMatchWinner(match);
 
             return (
               <div key={match.id} className="match-row" style={{ 
@@ -510,7 +505,9 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
                 border: '1px solid #f3f4f6' 
               }}>
                 <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                  {teamADisplay} vs {teamBDisplay}
+                  <span style={{ color: (matchPlayed && koWinner !== 'TBD' && koWinner === match.teamA) ? '#059669' : '#111827' }}>{teamADisplay}</span>
+                  <span className="match-vs" style={{ margin: '0 0.35rem' }}>vs</span>
+                  <span style={{ color: (matchPlayed && koWinner !== 'TBD' && koWinner === match.teamB) ? '#059669' : '#111827' }}>{teamBDisplay}</span>
                 </div>
 
                 <div className="match-col match-stats" style={{ textAlign: 'left' }}>
@@ -587,12 +584,23 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
     scores: knockoutMatch.scores
   });
 
+  // Determine tournament winner (finals winner) if available
+  const finalsMatch = finalMatches[0];
+  const finalsWinner = finalsMatch ? getKnockoutMatchWinner(finalsMatch) : 'TBD';
+
   return (
     <>
       <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
         <KnockoutSection title="Semi Finals" matches={semiMatches} />
         <KnockoutSection title="Finals" matches={finalMatches} />
       </div>
+
+      {finalsWinner !== 'TBD' && (
+        <div style={{ marginTop: '1rem', backgroundColor: '#f0fdf4', border: '1px solid #dcfce7', padding: '0.75rem 1rem', borderRadius: '6px' }}>
+          <strong style={{ color: '#059669' }}>Winner: </strong>
+          <span style={{ marginLeft: '0.5rem', fontWeight: 700 }}>{finalsWinner} 🏆</span>
+        </div>
+      )}
 
       {selectedMatch && isViewing && (
         <ViewMatchModal 

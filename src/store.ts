@@ -84,6 +84,26 @@ class TournamentStore {
     });
   }
 
+  // Ensure knockout matches have normalized tieBreaker shapes as well
+  private ensureKnockoutTieBreakers(knockouts: KnockoutMatch[]) {
+    return knockouts.map(k => {
+      if (!k.tieBreaker) {
+        return {
+          ...k,
+          tieBreaker: { teamAPlayers: ['', '', ''], teamBPlayers: ['', '', ''], teamAScore: undefined, teamBScore: undefined }
+        } as KnockoutMatch;
+      }
+      const tb = k.tieBreaker as any;
+      const normalized = {
+        teamAPlayers: Array.isArray(tb.teamAPlayers) ? tb.teamAPlayers.slice(0,3).concat(Array(3 - (tb.teamAPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+        teamBPlayers: Array.isArray(tb.teamBPlayers) ? tb.teamBPlayers.slice(0,3).concat(Array(3 - (tb.teamBPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+        teamAScore: typeof tb.teamAScore === 'number' ? tb.teamAScore : undefined,
+        teamBScore: typeof tb.teamBScore === 'number' ? tb.teamBScore : undefined,
+      };
+      return { ...k, tieBreaker: normalized } as KnockoutMatch;
+    });
+  }
+
   private mapLegacyMatchNames(match: any): Match {
     const mappedA = (typeof match.teamA === 'string' && this.LEGACY_NAME_MAP[match.teamA]) ? this.LEGACY_NAME_MAP[match.teamA] : match.teamA;
     const mappedB = (typeof match.teamB === 'string' && this.LEGACY_NAME_MAP[match.teamB]) ? this.LEGACY_NAME_MAP[match.teamB] : match.teamB;
@@ -104,7 +124,7 @@ class TournamentStore {
         const tournamentData = data.payload as TournamentData;
             // map legacy names and ensure tieBreaker shape
             this.matches = this.ensureTieBreakers((tournamentData.poolMatches || []).map(m => this.mapLegacyMatchNames(m as any)));
-            this.knockoutMatches = (tournamentData.knockoutMatches || []).map(k => ({ ...k } as KnockoutMatch));
+            this.knockoutMatches = this.ensureKnockoutTieBreakers((tournamentData.knockoutMatches || []) as KnockoutMatch[]);
             this.initializeKnockoutMatches();
             // persist normalized names locally so UI shows updated labels next load
             await this.saveData();
@@ -142,11 +162,12 @@ class TournamentStore {
         if (parsedData.poolMatches && Array.isArray(parsedData.poolMatches)) {
           const tournamentData = parsedData as TournamentData;
           this.matches = this.ensureTieBreakers((tournamentData.poolMatches || []).map(m => this.mapLegacyMatchNames(m as any)));
-          this.knockoutMatches = (tournamentData.knockoutMatches || []).map(k => ({ ...k } as KnockoutMatch));
+          this.knockoutMatches = this.ensureKnockoutTieBreakers((tournamentData.knockoutMatches || []) as KnockoutMatch[]);
           this.initializeKnockoutMatches();
           this.saveToLocalStorage();
         } else if (Array.isArray(parsedData)) {
           this.matches = this.ensureTieBreakers((parsedData as any[]).map(m => this.mapLegacyMatchNames(m)));
+          this.knockoutMatches = this.ensureKnockoutTieBreakers([]);
           this.initializeKnockoutMatches();
           this.saveToLocalStorage();
         } else {
@@ -165,6 +186,7 @@ class TournamentStore {
       if (savedMatches) {
         try {
           this.matches = JSON.parse(savedMatches);
+          this.knockoutMatches = this.ensureKnockoutTieBreakers([]);
           this.initializeKnockoutMatches();
           this.saveToLocalStorage();
           localStorage.removeItem('tournament-matches');
@@ -319,10 +341,20 @@ class TournamentStore {
     }
   }
 
-  updateKnockoutMatch(matchId: string, scores: KnockoutMatch['scores']) {
+  updateKnockoutMatch(matchId: string, scores: KnockoutMatch['scores'], tieBreaker?: Match['tieBreaker']) {
     const matchIndex = this.knockoutMatches.findIndex(m => m.id === matchId);
     if (matchIndex !== -1) {
-      this.knockoutMatches[matchIndex] = { ...this.knockoutMatches[matchIndex], scores };
+      const updated = { ...this.knockoutMatches[matchIndex], scores } as KnockoutMatch;
+      if (tieBreaker) {
+        const tb = tieBreaker as any;
+        updated.tieBreaker = {
+          teamAPlayers: Array.isArray(tb.teamAPlayers) ? tb.teamAPlayers.slice(0,3).concat(Array(3 - (tb.teamAPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+          teamBPlayers: Array.isArray(tb.teamBPlayers) ? tb.teamBPlayers.slice(0,3).concat(Array(3 - (tb.teamBPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+          teamAScore: typeof tb.teamAScore === 'number' ? tb.teamAScore : undefined,
+          teamBScore: typeof tb.teamBScore === 'number' ? tb.teamBScore : undefined,
+        };
+      }
+      this.knockoutMatches[matchIndex] = updated;
       this.updateFinalsTeams();
       this.saveData();
       this.notify();
@@ -348,11 +380,21 @@ class TournamentStore {
     }
   }
 
-  async updateKnockoutMatchAPI(matchId: string, scores: KnockoutMatch['scores']) {
+  async updateKnockoutMatchAPI(matchId: string, scores: KnockoutMatch['scores'], tieBreaker?: Match['tieBreaker']) {
     try {
       const matchIndex = this.knockoutMatches.findIndex(m => m.id === matchId);
       if (matchIndex !== -1) {
-        this.knockoutMatches[matchIndex] = { ...this.knockoutMatches[matchIndex], scores };
+        const updated = { ...this.knockoutMatches[matchIndex], scores } as KnockoutMatch;
+        if (tieBreaker) {
+          const tb = tieBreaker as any;
+          updated.tieBreaker = {
+            teamAPlayers: Array.isArray(tb.teamAPlayers) ? tb.teamAPlayers.slice(0,3).concat(Array(3 - (tb.teamAPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+            teamBPlayers: Array.isArray(tb.teamBPlayers) ? tb.teamBPlayers.slice(0,3).concat(Array(3 - (tb.teamBPlayers||[]).length).fill('')).slice(0,3) : ['', '', ''],
+            teamAScore: typeof tb.teamAScore === 'number' ? tb.teamAScore : undefined,
+            teamBScore: typeof tb.teamBScore === 'number' ? tb.teamBScore : undefined,
+          };
+        }
+        this.knockoutMatches[matchIndex] = updated;
         this.updateFinalsTeams();
         await this.saveData();
         this.notify();
@@ -361,7 +403,7 @@ class TournamentStore {
       }
     } catch (error) {
       console.error('Failed to update knockout match via API, using local update:', error);
-      this.updateKnockoutMatch(matchId, scores);
+      this.updateKnockoutMatch(matchId, scores, tieBreaker);
     }
   }
 
@@ -399,7 +441,7 @@ export function useTournamentStore() {
     standings: tournamentStore.getStandings(),
     isLoading: tournamentStore.loading,
   updateMatch: (matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => tournamentStore.updateMatchAPI(matchId, scores, tieBreaker),
-    updateKnockoutMatch: (matchId: string, scores: KnockoutMatch['scores']) => tournamentStore.updateKnockoutMatchAPI(matchId, scores),
+  updateKnockoutMatch: (matchId: string, scores: KnockoutMatch['scores'], tieBreaker?: Match['tieBreaker']) => tournamentStore.updateKnockoutMatchAPI(matchId, scores, tieBreaker),
     resetTournament: () => tournamentStore.resetTournament(),
   };
 }

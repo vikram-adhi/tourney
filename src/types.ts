@@ -449,38 +449,15 @@ export function generateKnockoutMatches(
 // Get winner of a knockout match
 export function getKnockoutMatchWinner(match: KnockoutMatch): TeamName | "TBD" {
   if (!isKnockoutMatchComplete(match)) return "TBD";
-  
-  let teamAWins = 0;
-  let teamBWins = 0;
-  let totalPointsA = 0;
-  let totalPointsB = 0;
 
-  match.scores.forEach(score => {
-    if (score.teamAScore > score.teamBScore) {
-      teamAWins++;
-    } else if (score.teamBScore > score.teamAScore) {
-      teamBWins++;
-    }
-    totalPointsA += score.teamAScore;
-    totalPointsB += score.teamBScore;
-  });
+  const result = determineWinnerFromScores(
+    match.scores,
+    match.tieBreaker ? { teamAScore: match.tieBreaker.teamAScore, teamBScore: match.tieBreaker.teamBScore } : undefined
+  );
 
-  // Determine match winner by category wins; if tied, break tie by total points
-  if (teamAWins > teamBWins) {
-    return match.teamA as TeamName;
-  } else if (teamBWins > teamAWins) {
-    return match.teamB as TeamName;
-  } else {
-    // Category wins are equal — use total points as tiebreaker
-    if (totalPointsA > totalPointsB) {
-      return match.teamA as TeamName;
-    } else if (totalPointsB > totalPointsA) {
-      return match.teamB as TeamName;
-    } else {
-      // Fully tied: return TBD (this shouldn't happen in elimination)
-      return "TBD";
-    }
-  }
+  if (result === 'A') return match.teamA as TeamName;
+  if (result === 'B') return match.teamB as TeamName;
+  return "TBD";
 }
 
 // Check if knockout match is complete
@@ -492,4 +469,35 @@ export function isKnockoutMatchComplete(match: KnockoutMatch): boolean {
     const hasPlayer = (score.teamAPlayer1 && score.teamAPlayer1.trim() !== '') || (score.teamBPlayer1 && score.teamBPlayer1.trim() !== '');
     return hasScore || hasPlayer;
   });
+}
+
+// Reusable helper: decide winner from category scores and optional tieBreaker.
+// Returns 'A' if teamA wins, 'B' if teamB wins, 'TBD' if unresolved.
+export function determineWinnerFromScores(scores: CategoryScore[], tieBreaker?: { teamAScore?: number; teamBScore?: number } | undefined): 'A' | 'B' | 'TBD' {
+  let teamAWins = 0;
+  let teamBWins = 0;
+  let totalPointsA = 0;
+  let totalPointsB = 0;
+
+  scores.forEach(score => {
+    if (score.teamAScore > score.teamBScore) teamAWins++;
+    else if (score.teamBScore > score.teamAScore) teamBWins++;
+    totalPointsA += score.teamAScore;
+    totalPointsB += score.teamBScore;
+  });
+
+  if (teamAWins > teamBWins) return 'A';
+  if (teamBWins > teamAWins) return 'B';
+
+  // category wins tied -> use total points
+  if (totalPointsA > totalPointsB) return 'A';
+  if (totalPointsB > totalPointsA) return 'B';
+
+  // fully tied -> use tieBreaker if available
+  if (tieBreaker && typeof tieBreaker.teamAScore === 'number' && typeof tieBreaker.teamBScore === 'number') {
+    if (tieBreaker.teamAScore > tieBreaker.teamBScore) return 'A';
+    if (tieBreaker.teamBScore > tieBreaker.teamAScore) return 'B';
+  }
+
+  return 'TBD';
 }
