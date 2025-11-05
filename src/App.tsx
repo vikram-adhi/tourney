@@ -150,8 +150,8 @@ function StandingsTable({ poolA, poolB, poolAComplete, poolBComplete }: { poolA:
     // Sort by points descending. If equal, keep existing order (stable).
     const sortedData = [...data].sort((a, b) => b.points - a.points);
 
-  return (
-      <div style={{
+    return (
+      <div className="standings-card" style={{
         backgroundColor: 'white',
         padding: '1rem',
         borderRadius: '6px',
@@ -175,10 +175,10 @@ function StandingsTable({ poolA, poolB, poolAComplete, poolBComplete }: { poolA:
             <tbody>
             {sortedData.map((row, idx) => (
               <tr key={row.team}>
-                <td style={{ padding: '0.5rem', fontWeight: '600', fontSize: '0.875rem' }}>
+                <td className="standings-team" style={{ padding: '0.5rem', fontWeight: '600', fontSize: '0.875rem' }}>
                   {/* show ordinal badges for 1st/2nd and green for qualified teams only when pool is complete */}
-                  <span style={{ marginRight: '0.4rem' }}>{complete && idx === 0 ? '🥇' : complete && idx === 1 ? '🥈' : ''}</span>
-                  <span style={{ color: complete && (idx === 0 || idx === 1) ? '#059669' : '#111827' }}>{row.team}</span>
+                  <span className="standings-badge" aria-hidden>{complete && idx === 0 ? '🥇' : complete && idx === 1 ? '🥈' : ''}</span>
+                  <span className="standings-name" style={{ color: complete && (idx === 0 || idx === 1) ? '#059669' : '#111827' }}>{row.team}</span>
                 </td>
                 <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.875rem' }}>{row.wins}</td>
                 <td style={{ padding: '0.5rem', textAlign: 'center', fontSize: '0.875rem' }}>{row.losses}</td>
@@ -206,14 +206,10 @@ function StandingsTable({ poolA, poolB, poolAComplete, poolBComplete }: { poolA:
 }
 
 // Matches List Component
-function MatchesList({ matches, isAdmin, onUpdateMatch, qualifiedA, qualifiedB, poolAComplete, poolBComplete }: { 
+function MatchesList({ matches, isAdmin, onUpdateMatch }: { 
   matches: Match[]; 
   isAdmin: boolean; 
   onUpdateMatch: (matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => void;
-  qualifiedA: string[];
-  qualifiedB: string[];
-  poolAComplete: boolean;
-  poolBComplete: boolean;
 }) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isViewing, setIsViewing] = useState(false);
@@ -313,9 +309,6 @@ function MatchesList({ matches, isAdmin, onUpdateMatch, qualifiedA, qualifiedB, 
           }
 
             // determine per-match winner so we can color the winner green immediately
-            const poolQualified = title.includes('A') ? qualifiedA : qualifiedB;
-            const poolComplete = title.includes('A') ? poolAComplete : poolBComplete;
-
             // decide match winner (teamA/teamB) based on matchesWon and tieBreaker
             let matchWinner: 'A' | 'B' | null = null;
             if (matchPlayed) {
@@ -635,10 +628,6 @@ function AppContent() {
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'knockouts'>('standings');
 
-  // compute qualified teams (top2) for display in matches and standings
-  const qualifiedA = standings.poolA ? standings.poolA.slice(0, 2).map((s: any) => s.team) : [];
-  const qualifiedB = standings.poolB ? standings.poolB.slice(0, 2).map((s: any) => s.team) : [];
-
   const poolAComplete = arePoolMatchesComplete(matches, 'A');
   const poolBComplete = arePoolMatchesComplete(matches, 'B');
 
@@ -798,7 +787,7 @@ function AppContent() {
         {activeTab === 'standings' ? (
           <StandingsTable poolA={standings.poolA} poolB={standings.poolB} poolAComplete={poolAComplete} poolBComplete={poolBComplete} />
         ) : activeTab === 'matches' ? (
-          <MatchesList matches={matches} isAdmin={isAdmin} onUpdateMatch={updateMatch} qualifiedA={qualifiedA} qualifiedB={qualifiedB} poolAComplete={poolAComplete} poolBComplete={poolBComplete} />
+          <MatchesList matches={matches} isAdmin={isAdmin} onUpdateMatch={updateMatch} />
         ) : (
           <KnockoutMatches knockoutMatches={knockoutMatches} isAdmin={isAdmin} onUpdateMatch={updateKnockoutMatch} />
         )}

@@ -238,6 +238,81 @@ table {
   }
 }
 
+/* Standings table mobile tweaks: force badge + team name into one line */
+@media (max-width: 480px) {
+  .standings-team {
+    padding: 0.25rem !important;
+    font-size: 0.8rem !important;
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+  }
+
+  .standings-team .standings-badge {
+    margin-right: 0.25rem !important;
+    display: inline-block !important;
+    vertical-align: middle !important;
+    font-size: 0.9rem !important;
+  }
+
+  .standings-team .standings-name {
+    display: inline-block !important;
+    vertical-align: middle !important;
+    font-size: 0.9rem !important;
+    line-height: 1 !important;
+    /* allow full name to wrap/show on rows */
+    max-width: none !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    white-space: normal !important;
+  }
+}
+
+/* Reduce standings card padding and font sizes so team names fit on smaller mobile widths */
+@media (max-width: 420px) {
+  .standings-card {
+    padding: 0.5rem !important;
+  }
+
+  .standings-card table {
+    font-size: 0.78rem !important;
+  }
+
+  /* reduce horizontal padding to free space for team names */
+  .standings-card th, .standings-card td {
+    padding-top: 0.25rem !important;
+    padding-bottom: 0.25rem !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+  }
+
+  .standings-card h3 {
+    font-size: 0.9rem !important;
+    margin-bottom: 0.25rem !important;
+  }
+
+  /* Make Events and Points columns very compact on small screens */
+  .standings-card th:nth-child(5), .standings-card th:nth-child(6) {
+    /* allow header to wrap into two lines */
+    white-space: normal !important;
+    font-size: 0.8rem !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+    text-align: center !important;
+  }
+
+  .standings-card td:nth-child(5), .standings-card td:nth-child(6) {
+    /* keep data cells compact for numbers */
+    width: 44px !important;
+    max-width: 44px !important;
+    padding-left: 2px !important;
+    padding-right: 2px !important;
+    font-size: 0.72rem !important;
+    text-align: center !important;
+    white-space: nowrap !important;
+  }
+}
+
 /* Ensure inner name elements center on mobile even if inline styles exist */
 @media (max-width: 640px) {
   .vm-category-names,
