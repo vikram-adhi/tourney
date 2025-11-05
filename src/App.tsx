@@ -581,8 +581,10 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
     teamA: knockoutMatch.teamA as any,
     teamB: knockoutMatch.teamB as any,
     pool: 'A' as any, // Dummy value for knockout matches
-    scores: knockoutMatch.scores
+    scores: knockoutMatch.scores,
+    tieBreaker: knockoutMatch.tieBreaker ? { ...knockoutMatch.tieBreaker } : undefined,
   });
+
 
   // Determine tournament winner (finals winner) if available
   const finalsMatch = finalMatches[0];
