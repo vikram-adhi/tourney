@@ -24,8 +24,8 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
     const newScores = [...scores];
     if (field === 'teamAScore' || field === 'teamBScore') {
       const numericValue = typeof value === 'string' ? parseInt(value) || 0 : value;
-      // Enforce maximum score of 21 for badminton
-      const clampedValue = Math.min(Math.max(numericValue, 0), 21);
+  // Enforce maximum score of 30
+  const clampedValue = Math.min(Math.max(numericValue, 0), 30);
       newScores[categoryIndex] = {
         ...newScores[categoryIndex],
         [field]: clampedValue
@@ -218,7 +218,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       minHeight: '28px'
                     }}
                     min="0"
-                    max="21"
+                    max="30"
                   />
                 </div>
 
@@ -312,7 +312,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       minHeight: '28px'
                     }}
                     min="0"
-                    max="21"
+                    max="30"
                   />
                 </div>
               </div>

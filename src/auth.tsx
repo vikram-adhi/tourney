@@ -3,6 +3,7 @@ import type { ReactNode } from 'react';
 
 interface AuthContextType {
   isAdmin: boolean;
+  currentUser: string | null;
   login: (username: string, password: string) => Promise<boolean>;
   logout: () => void;
 }
@@ -11,10 +12,12 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isAdmin, setIsAdmin] = useState(false);
+  const [currentUser, setCurrentUser] = useState<string | null>(null);
 
   useEffect(() => {
-    const adminStatus = localStorage.getItem('isAdmin') === 'true';
-    setIsAdmin(adminStatus);
+    const storedUser = localStorage.getItem('currentUser');
+    setCurrentUser(storedUser);
+    setIsAdmin(!!storedUser);
   }, []);
 
   // Simple in-app login (client-side). This intentionally uses a hardcoded
@@ -24,13 +27,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // NOTE: This is less secure than server-side auth. If you later deploy to
   // production and want to protect admin access, replace this with a server
   // validation flow.
-  const ADMIN_USER = 'admin_RRBT';
-  const ADMIN_PASS = 'hpeblr';
+  // Support two client-side accounts:
+  // - admin_RRBT / hpeblr  (regular admin)
+  // - superadmin_RRBT / hpeblr  (super admin with extra reset powers)
+  const VALID_USERS: Record<string, string> = {
+    admin_RRBT: 'hpeblr',
+    superadmin_RRBT: 'hpeblr'
+  };
 
   const login = async (username: string, password: string): Promise<boolean> => {
-    const ok = username === ADMIN_USER && password === ADMIN_PASS;
+    const expected = VALID_USERS[username];
+    const ok = expected && expected === password;
     if (ok) {
-      localStorage.setItem('isAdmin', 'true');
+      localStorage.setItem('currentUser', username);
+      setCurrentUser(username);
       setIsAdmin(true);
       return true;
     }
@@ -38,12 +48,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = () => {
-    localStorage.removeItem('isAdmin');
+    localStorage.removeItem('currentUser');
     setIsAdmin(false);
+    setCurrentUser(null);
   };
 
   return (
-    <AuthContext.Provider value={{ isAdmin, login, logout }}>
+    <AuthContext.Provider value={{ isAdmin, currentUser, login, logout }}>
       {children}
     </AuthContext.Provider>
   );

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthProvider, useAuth } from './auth';
 import { useTournamentStore } from './store';
 import type { Match, KnockoutMatch } from './types';
@@ -214,6 +214,13 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isViewing, setIsViewing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  // keep selectedMatch in sync with outer matches prop so modals update when store changes
+  useEffect(() => {
+    if (selectedMatch) {
+      const updated = matches.find(m => m.id === selectedMatch.id);
+      if (updated && updated !== selectedMatch) setSelectedMatch(updated);
+    }
+  }, [matches]);
   const [expandedPools, setExpandedPools] = useState<{ [key: string]: boolean }>({
     'Pool A': true,
     'Pool B': false
@@ -429,6 +436,13 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
   const [selectedMatch, setSelectedMatch] = useState<KnockoutMatch | null>(null);
   const [isViewing, setIsViewing] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
+  // refresh selected knockout match when knockoutMatches prop changes
+  useEffect(() => {
+    if (selectedMatch) {
+      const updated = knockoutMatches.find(m => m.id === selectedMatch.id);
+      if (updated && updated !== selectedMatch) setSelectedMatch(updated);
+    }
+  }, [knockoutMatches]);
 
   const semiMatches = knockoutMatches.filter(m => m.type === 'semi');
   const finalMatches = knockoutMatches.filter(m => m.type === 'final');
@@ -633,7 +647,7 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
 }
 
 function AppContent() {
-  const { isAdmin, logout } = useAuth();
+  const { isAdmin, logout, currentUser } = useAuth();
   const { matches, knockoutMatches, standings, resetTournament, updateMatch, updateKnockoutMatch } = useTournamentStore();
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'knockouts'>('standings');
@@ -682,20 +696,23 @@ function AppContent() {
           <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
             {isAdmin ? (
               <>
-                <button
-                  onClick={resetTournament}
-                  style={{
-                    padding: '0.25rem 0.5rem',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer',
-                    fontSize: '0.75rem'
-                  }}
-                >
-                  Reset
-                </button>
+                {/* Only show Reset to the superadmin_RRBT user */}
+                {currentUser === 'superadmin_RRBT' && (
+                  <button
+                    onClick={resetTournament}
+                    style={{
+                      padding: '0.25rem 0.5rem',
+                      backgroundColor: '#dc2626',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontSize: '0.75rem'
+                    }}
+                  >
+                    Reset
+                  </button>
+                )}
                 <button
                   onClick={logout}
                   style={{

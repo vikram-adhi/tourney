@@ -10,6 +10,7 @@ import {
   POOL_A_TEAMS,
   POOL_B_TEAMS,
 } from './types';
+import { getSupabaseClient } from './supabaseClient';
 
 // Tournament data structure for persistence
 interface TournamentData {
@@ -17,25 +18,7 @@ interface TournamentData {
   knockoutMatches: KnockoutMatch[];
 }
 
-let _supabaseClient: any | null | undefined = undefined;
-async function getSupabaseClient() {
-  if (_supabaseClient !== undefined) return _supabaseClient;
-  try {
-    const url = import.meta.env.VITE_SUPABASE_URL as string | undefined;
-    const key = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
-    if (!url || !key) {
-      _supabaseClient = null;
-      return null;
-    }
-    const mod = await import('@supabase/supabase-js');
-    _supabaseClient = mod.createClient(url, key);
-    return _supabaseClient;
-  } catch (err) {
-    console.warn('Could not initialize Supabase client:', err);
-    _supabaseClient = null;
-    return null;
-  }
-}
+// Use `src/supabaseClient.ts` for client initialization. If missing, store will operate in-memory only.
 
 class TournamentStore {
   private matches: Match[] = [];
@@ -113,22 +96,23 @@ class TournamentStore {
   private async loadData() {
     try {
       this.isLoading = true;
-      const supabase = await getSupabaseClient();
+      const supabase = getSupabaseClient();
       if (supabase) {
         const { data, error } = await supabase.from('tournament').select('payload').eq('id', 'singleton').single();
         if (error) {
-          console.warn('Supabase read failed, falling back to localStorage:', (error as any).message || error);
-          this.loadFromLocalStorage();
+          console.warn('Supabase read failed, operating in-memory only:', (error as any).message || error);
+          this.matches = generateAllMatches();
+          this.initializeKnockoutMatches();
         } else if (data && data.payload) {
-      if (data.payload.poolMatches && Array.isArray(data.payload.poolMatches)) {
-        const tournamentData = data.payload as TournamentData;
+          if (data.payload.poolMatches && Array.isArray(data.payload.poolMatches)) {
+            const tournamentData = data.payload as TournamentData;
             // map legacy names and ensure tieBreaker shape
             this.matches = this.ensureTieBreakers((tournamentData.poolMatches || []).map(m => this.mapLegacyMatchNames(m as any)));
             this.knockoutMatches = this.ensureKnockoutTieBreakers((tournamentData.knockoutMatches || []) as KnockoutMatch[]);
             this.initializeKnockoutMatches();
-            // persist normalized names locally so UI shows updated labels next load
+            // persist normalized names back to Supabase
             await this.saveData();
-      } else if (Array.isArray(data.payload) && data.payload.length > 0) {
+          } else if (Array.isArray(data.payload) && data.payload.length > 0) {
             this.matches = this.ensureTieBreakers((data.payload as any[]).map(m => this.mapLegacyMatchNames(m)));
             this.initializeKnockoutMatches();
             await this.saveData();
@@ -143,66 +127,21 @@ class TournamentStore {
           await this.saveData();
         }
       } else {
-        this.loadFromLocalStorage();
+        // Supabase is not configured; fall back to in-memory generation.
+        this.matches = generateAllMatches();
+        this.initializeKnockoutMatches();
       }
     } catch (error) {
-      console.error('Failed to load data from API, using localStorage:', error);
-      this.loadFromLocalStorage();
+      console.error('Failed to load data from API, operating in-memory:', error);
+      this.matches = generateAllMatches();
+      this.initializeKnockoutMatches();
     } finally {
       this.isLoading = false;
       this.notify();
     }
   }
 
-  private loadFromLocalStorage() {
-    const savedData = localStorage.getItem('tournament-data');
-        if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        if (parsedData.poolMatches && Array.isArray(parsedData.poolMatches)) {
-          const tournamentData = parsedData as TournamentData;
-          this.matches = this.ensureTieBreakers((tournamentData.poolMatches || []).map(m => this.mapLegacyMatchNames(m as any)));
-          this.knockoutMatches = this.ensureKnockoutTieBreakers((tournamentData.knockoutMatches || []) as KnockoutMatch[]);
-          this.initializeKnockoutMatches();
-          this.saveToLocalStorage();
-        } else if (Array.isArray(parsedData)) {
-          this.matches = this.ensureTieBreakers((parsedData as any[]).map(m => this.mapLegacyMatchNames(m)));
-          this.knockoutMatches = this.ensureKnockoutTieBreakers([]);
-          this.initializeKnockoutMatches();
-          this.saveToLocalStorage();
-        } else {
-          this.matches = generateAllMatches();
-          this.initializeKnockoutMatches();
-          this.saveToLocalStorage();
-        }
-      } catch (error) {
-        console.error('Failed to parse localStorage data, resetting:', error);
-        this.matches = generateAllMatches();
-        this.initializeKnockoutMatches();
-        this.saveToLocalStorage();
-      }
-    } else {
-      const savedMatches = localStorage.getItem('tournament-matches');
-      if (savedMatches) {
-        try {
-          this.matches = JSON.parse(savedMatches);
-          this.knockoutMatches = this.ensureKnockoutTieBreakers([]);
-          this.initializeKnockoutMatches();
-          this.saveToLocalStorage();
-          localStorage.removeItem('tournament-matches');
-        } catch (error) {
-          console.error('Failed to migrate old localStorage data:', error);
-          this.matches = generateAllMatches();
-          this.initializeKnockoutMatches();
-          this.saveToLocalStorage();
-        }
-      } else {
-        this.matches = generateAllMatches();
-        this.initializeKnockoutMatches();
-        this.saveToLocalStorage();
-      }
-    }
-  }
+  // localStorage migration removed. The app now expects Supabase for persistence.
 
   private initializeKnockoutMatches() {
     // Ensure match.pool fields align with current pool membership (fixes persisted legacy pool tags)
@@ -221,8 +160,19 @@ class TournamentStore {
       if (this.knockoutMatches.length > 0) {
         this.knockoutMatches.forEach((existing, index) => {
           if (index < generatedKnockouts.length) {
-            existing.teamA = generatedKnockouts[index].teamA;
-            existing.teamB = generatedKnockouts[index].teamB;
+            const gen = generatedKnockouts[index];
+            // If teams changed (including becoming "TBD"), reset scores and tieBreaker
+            if (existing.teamA !== gen.teamA || existing.teamB !== gen.teamB) {
+              existing.teamA = gen.teamA;
+              existing.teamB = gen.teamB;
+              existing.scores = gen.scores.slice();
+              existing.tieBreaker = {
+                teamAPlayers: Array.isArray(gen.tieBreaker?.teamAPlayers) ? gen.tieBreaker!.teamAPlayers.slice(0,3) : ['', '', ''],
+                teamBPlayers: Array.isArray(gen.tieBreaker?.teamBPlayers) ? gen.tieBreaker!.teamBPlayers.slice(0,3) : ['', '', ''],
+                teamAScore: typeof gen.tieBreaker?.teamAScore === 'number' ? gen.tieBreaker!.teamAScore : undefined,
+                teamBScore: typeof gen.tieBreaker?.teamBScore === 'number' ? gen.tieBreaker!.teamBScore : undefined,
+              };
+            }
           }
         });
       } else {
@@ -239,8 +189,18 @@ class TournamentStore {
       if (this.knockoutMatches.length > 0) {
         this.knockoutMatches.forEach((existing, index) => {
           if (index < generatedKnockouts.length) {
-            existing.teamA = generatedKnockouts[index].teamA;
-            existing.teamB = generatedKnockouts[index].teamB;
+            const gen = generatedKnockouts[index];
+            if (existing.teamA !== gen.teamA || existing.teamB !== gen.teamB) {
+              existing.teamA = gen.teamA;
+              existing.teamB = gen.teamB;
+              existing.scores = gen.scores.slice();
+              existing.tieBreaker = {
+                teamAPlayers: Array.isArray(gen.tieBreaker?.teamAPlayers) ? gen.tieBreaker!.teamAPlayers.slice(0,3) : ['', '', ''],
+                teamBPlayers: Array.isArray(gen.tieBreaker?.teamBPlayers) ? gen.tieBreaker!.teamBPlayers.slice(0,3) : ['', '', ''],
+                teamAScore: typeof gen.tieBreaker?.teamAScore === 'number' ? gen.tieBreaker!.teamAScore : undefined,
+                teamBScore: typeof gen.tieBreaker?.teamBScore === 'number' ? gen.tieBreaker!.teamBScore : undefined,
+              };
+            }
           }
         });
       } else {
@@ -252,6 +212,22 @@ class TournamentStore {
     } else {
       this.knockoutMatches = generateKnockoutMatches(['TBD', 'TBD'], ['TBD', 'TBD']);
     }
+
+    // Extra safety: if any knockout match currently has a TBD participant, ensure its
+    // scores and tieBreaker are reset to the empty template so stale scores don't persist
+    const emptyTemplate = generateKnockoutMatches(['TBD', 'TBD'], ['TBD', 'TBD']);
+    this.knockoutMatches.forEach(k => {
+      if (k.teamA === 'TBD' || k.teamB === 'TBD') {
+        const tpl = emptyTemplate.find(e => e.id === k.id)!;
+        k.scores = tpl.scores.slice();
+        k.tieBreaker = {
+          teamAPlayers: Array.isArray(tpl.tieBreaker?.teamAPlayers) ? tpl.tieBreaker!.teamAPlayers.slice(0,3) : ['', '', ''],
+          teamBPlayers: Array.isArray(tpl.tieBreaker?.teamBPlayers) ? tpl.tieBreaker!.teamBPlayers.slice(0,3) : ['', '', ''],
+          teamAScore: typeof tpl.tieBreaker?.teamAScore === 'number' ? tpl.tieBreaker!.teamAScore : undefined,
+          teamBScore: typeof tpl.tieBreaker?.teamBScore === 'number' ? tpl.tieBreaker!.teamBScore : undefined,
+        };
+      }
+    });
   }
 
   // Align persisted match.pool values to the configured pools in types.ts
@@ -282,27 +258,50 @@ class TournamentStore {
       const semi1Winner = getKnockoutMatchWinner(semi1);
       const semi2Winner = getKnockoutMatchWinner(semi2);
 
-      final.teamA = semi1Winner;
-      final.teamB = semi2Winner;
+      // If final teams change (including becoming "TBD"), reset their scores so stale scores don't remain
+      if (final.teamA !== semi1Winner) {
+        final.teamA = semi1Winner;
+        // reset scores/tieBreaker for final when its participant changed
+        const emptyFinal = generateKnockoutMatches(['TBD','TBD'], ['TBD','TBD']).find(m => m.id === 'final')!;
+        final.scores = emptyFinal.scores.slice();
+        final.tieBreaker = {
+          teamAPlayers: Array.isArray(emptyFinal.tieBreaker?.teamAPlayers) ? emptyFinal.tieBreaker!.teamAPlayers.slice(0,3) : ['', '', ''],
+          teamBPlayers: Array.isArray(emptyFinal.tieBreaker?.teamBPlayers) ? emptyFinal.tieBreaker!.teamBPlayers.slice(0,3) : ['', '', ''],
+          teamAScore: typeof emptyFinal.tieBreaker?.teamAScore === 'number' ? emptyFinal.tieBreaker!.teamAScore : undefined,
+          teamBScore: typeof emptyFinal.tieBreaker?.teamBScore === 'number' ? emptyFinal.tieBreaker!.teamBScore : undefined,
+        };
+      }
+      if (final.teamB !== semi2Winner) {
+        final.teamB = semi2Winner;
+        final.scores = generateKnockoutMatches(['TBD','TBD'], ['TBD','TBD']).find(m => m.id === 'final')!.scores.slice();
+        const emptyFinal2 = generateKnockoutMatches(['TBD','TBD'], ['TBD','TBD']).find(m => m.id === 'final')!;
+        final.tieBreaker = {
+          teamAPlayers: Array.isArray(emptyFinal2.tieBreaker?.teamAPlayers) ? emptyFinal2.tieBreaker!.teamAPlayers.slice(0,3) : ['', '', ''],
+          teamBPlayers: Array.isArray(emptyFinal2.tieBreaker?.teamBPlayers) ? emptyFinal2.tieBreaker!.teamBPlayers.slice(0,3) : ['', '', ''],
+          teamAScore: typeof emptyFinal2.tieBreaker?.teamAScore === 'number' ? emptyFinal2.tieBreaker!.teamAScore : undefined,
+          teamBScore: typeof emptyFinal2.tieBreaker?.teamBScore === 'number' ? emptyFinal2.tieBreaker!.teamBScore : undefined,
+        };
+      }
     }
   }
 
   private saveToLocalStorage() {
-    const tournamentData: TournamentData = { poolMatches: this.matches, knockoutMatches: this.knockoutMatches };
-    localStorage.setItem('tournament-data', JSON.stringify(tournamentData));
+    // no-op: localStorage persistence removed in favor of Supabase-only persistence
   }
 
   private async saveData() {
     try {
-      this.saveToLocalStorage();
-      const supabase = await getSupabaseClient();
+      const supabase = getSupabaseClient();
       if (supabase) {
         const tournamentData: TournamentData = { poolMatches: this.matches, knockoutMatches: this.knockoutMatches };
         const { error } = await supabase.from('tournament').upsert({ id: 'singleton', payload: tournamentData });
-        if (error) console.warn('Failed to save to Supabase, data saved locally:', (error as any).message || error);
+        if (error) console.warn('Failed to save to Supabase:', (error as any).message || error);
+      } else {
+        // Supabase not configured — operate in-memory only. Changes won't persist across page reloads.
+        console.warn('Supabase not configured; changes are in-memory only. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY to persist data.');
       }
     } catch (error) {
-      console.warn('Failed to save to API, data saved locally:', error);
+      console.warn('Failed to save to API:', error);
     }
   }
 
