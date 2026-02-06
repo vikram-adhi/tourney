@@ -206,10 +206,12 @@ function StandingsTable({ poolA, poolB, poolAComplete, poolBComplete }: { poolA:
 }
 
 // Matches List Component
-function MatchesList({ matches, isAdmin, onUpdateMatch }: { 
+function MatchesList({ matches, isAdmin, onUpdateMatch, teams, editable }: { 
   matches: Match[]; 
   isAdmin: boolean; 
   onUpdateMatch: (matchId: string, scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => void;
+  teams: { name: string; pool: 'A' | 'B'; players: string[] }[];
+  editable: boolean;
 }) {
   const [selectedMatch, setSelectedMatch] = useState<Match | null>(null);
   const [isViewing, setIsViewing] = useState(false);
@@ -362,7 +364,7 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
                   >
                     View
                   </button>
-                  {isAdmin && (
+                  {isAdmin && editable && (
                     <button
                       onClick={() => {
                         setSelectedMatch(match);
@@ -412,6 +414,7 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
       {selectedMatch && isEditing && (
         <EditMatchModal 
           match={selectedMatch} 
+          teams={teams}
           onClose={() => {
             setSelectedMatch(null);
             setIsEditing(false);
@@ -428,10 +431,11 @@ function MatchesList({ matches, isAdmin, onUpdateMatch }: {
 }
 
 // Knockout Matches Component  
-function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: { 
+function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch, editable }: { 
   knockoutMatches: KnockoutMatch[]; 
   isAdmin: boolean; 
   onUpdateMatch: (matchId: string, scores: KnockoutMatch['scores'], tieBreaker?: Match['tieBreaker']) => void;
+  editable: boolean;
 }) {
   const [selectedMatch, setSelectedMatch] = useState<KnockoutMatch | null>(null);
   const [isViewing, setIsViewing] = useState(false);
@@ -474,21 +478,37 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
 
         <div className="matches-grid" style={{ display: 'flex', flexDirection: 'column', gap: '0.375rem' }}>
           {matches.map((match) => {
-            const matchPlayed = isKnockoutMatchComplete(match);
-            // Compute category wins and total points for display and use shared helper for winner
+            const matchComplete = isKnockoutMatchComplete(match);
+
+            const categoryHasAnyData = (score: any) => {
+              const hasScore = (typeof score.teamAScore === 'number' && score.teamAScore > 0) || (typeof score.teamBScore === 'number' && score.teamBScore > 0);
+              const hasPlayer = (score.teamAPlayer1 && String(score.teamAPlayer1).trim() !== '') || (score.teamBPlayer1 && String(score.teamBPlayer1).trim() !== '');
+              return hasScore || hasPlayer;
+            };
+
+            const matchHasAnyData =
+              match.scores.some(categoryHasAnyData)
+              || (match.tieBreaker && (
+                (match.tieBreaker.teamAPlayers || []).some(p => p && String(p).trim() !== '')
+                || (match.tieBreaker.teamBPlayers || []).some(p => p && String(p).trim() !== '')
+                || typeof match.tieBreaker.teamAScore === 'number'
+                || typeof match.tieBreaker.teamBScore === 'number'
+              ));
+
+            // Compute category wins and total points for display. For in-progress matches,
+            // only count categories that have any data entered.
             let matchesWon = { teamA: 0, teamB: 0 };
             let totalScores = { teamA: 0, teamB: 0 };
-            if (matchPlayed) {
-              match.scores.forEach(score => {
-                if (score.teamAScore > score.teamBScore) matchesWon.teamA++;
-                else if (score.teamBScore > score.teamAScore) matchesWon.teamB++;
-                totalScores.teamA += score.teamAScore;
-                totalScores.teamB += score.teamBScore;
-              });
-            }
+            match.scores.forEach(score => {
+              if (!categoryHasAnyData(score)) return;
+              if (score.teamAScore > score.teamBScore) matchesWon.teamA++;
+              else if (score.teamBScore > score.teamAScore) matchesWon.teamB++;
+              totalScores.teamA += score.teamAScore;
+              totalScores.teamB += score.teamBScore;
+            });
 
             let tbNode: null | JSX.Element = null;
-            if (matchPlayed && matchesWon.teamA === matchesWon.teamB && match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
+            if (matchComplete && matchesWon.teamA === matchesWon.teamB && match.tieBreaker && typeof match.tieBreaker.teamAScore === 'number' && typeof match.tieBreaker.teamBScore === 'number') {
               const teamAWonTB = match.tieBreaker.teamAScore > match.tieBreaker.teamBScore;
               const leftStyle = { color: teamAWonTB ? '#059669' : '#374151' } as React.CSSProperties;
               const rightStyle = { color: teamAWonTB ? '#374151' : '#059669' } as React.CSSProperties;
@@ -500,7 +520,9 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
             }
 
             // Use shared logic to determine knockout winner (A/B/TBD)
-            const koResult = matchPlayed ? determineWinnerFromScores(match.scores, match.tieBreaker ? { teamAScore: match.tieBreaker.teamAScore, teamBScore: match.tieBreaker.teamBScore } : undefined) : 'TBD';
+            const koResult = matchComplete
+              ? determineWinnerFromScores(match.scores, match.tieBreaker ? { teamAScore: match.tieBreaker.teamAScore, teamBScore: match.tieBreaker.teamBScore } : undefined)
+              : 'TBD';
             const koWinner = koResult === 'A' ? match.teamA : koResult === 'B' ? match.teamB : 'TBD';
 
             const teamADisplay = match.teamA === "TBD" ? "TBD" : match.teamA;
@@ -519,13 +541,13 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
                 border: '1px solid #f3f4f6' 
               }}>
                 <div className="match-col match-teams" style={{ fontWeight: 600, fontSize: '0.875rem' }}>
-                  <span style={{ color: (matchPlayed && koWinner !== 'TBD' && koWinner === match.teamA) ? '#059669' : '#111827' }}>{teamADisplay}</span>
+                  <span style={{ color: (matchComplete && koWinner !== 'TBD' && koWinner === match.teamA) ? '#059669' : '#111827' }}>{teamADisplay}</span>
                   <span className="match-vs" style={{ margin: '0 0.35rem' }}>vs</span>
-                  <span style={{ color: (matchPlayed && koWinner !== 'TBD' && koWinner === match.teamB) ? '#059669' : '#111827' }}>{teamBDisplay}</span>
+                  <span style={{ color: (matchComplete && koWinner !== 'TBD' && koWinner === match.teamB) ? '#059669' : '#111827' }}>{teamBDisplay}</span>
                 </div>
 
                 <div className="match-col match-stats" style={{ textAlign: 'left' }}>
-                  {matchPlayed ? (
+                  {matchHasAnyData ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '0.1rem' }}>
                       <div style={{ fontSize: '0.8rem', fontWeight: '600' }}>
                         Matches: <span style={{ color: matchesWon.teamA > matchesWon.teamB ? '#059669' : '#374151' }}>{matchesWon.teamA}</span> - <span style={{ color: matchesWon.teamB > matchesWon.teamA ? '#059669' : '#374151' }}>{matchesWon.teamB}</span>{tbNode}
@@ -533,6 +555,9 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
                       <div style={{ fontSize: '0.8rem', color: '#6b7280' }}>
                         Points: <span style={{ color: totalScores.teamA > totalScores.teamB ? '#059669' : '#6b7280' }}>{totalScores.teamA}</span> - <span style={{ color: totalScores.teamB > totalScores.teamA ? '#059669' : '#6b7280' }}>{totalScores.teamB}</span>
                       </div>
+                      {!matchComplete && (match.teamA !== 'TBD' && match.teamB !== 'TBD') && (
+                        <div style={{ fontSize: '0.75rem', color: '#6b7280', fontStyle: 'italic' }}>In progress</div>
+                      )}
                     </div>
                   ) : (
                     <div style={{ color: '#6b7280', fontStyle: 'italic', fontSize: '0.8rem' }}>
@@ -560,7 +585,7 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
                     >
                       View
                     </button>
-                    {isAdmin && match.teamA !== "TBD" && match.teamB !== "TBD" && (
+                    {isAdmin && editable && match.teamA !== "TBD" && match.teamB !== "TBD" && (
                       <button
                         onClick={() => {
                           setSelectedMatch(match);
@@ -648,12 +673,18 @@ function KnockoutMatches({ knockoutMatches, isAdmin, onUpdateMatch }: {
 
 function AppContent() {
   const { isAdmin, logout, currentUser } = useAuth();
-  const { matches, knockoutMatches, standings, resetTournament, updateMatch, updateKnockoutMatch } = useTournamentStore();
+    const { matches, knockoutMatches, standings, resetTournament, updateMatch, updateKnockoutMatch, setSeason, teams } = useTournamentStore();
+  const [season, setSeasonState] = useState('2');
+  const handleSeasonChange = (newSeason: string) => {
+    setSeasonState(newSeason);
+    setSeason(newSeason);
+  };
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'standings' | 'matches' | 'knockouts'>('standings');
 
   const poolAComplete = arePoolMatchesComplete(matches, 'A');
   const poolBComplete = arePoolMatchesComplete(matches, 'B');
+  const editable = season !== '1';
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: '#f9fafb' }}>
@@ -688,7 +719,14 @@ function AppContent() {
                 Racquet Rumble Badminton Tournament
               </h1>
               <p style={{ margin: 0, fontSize: '0.75rem', color: '#6b7280' }}>
-                Season 1
+                <select
+                  value={season}
+                  onChange={e => handleSeasonChange(e.target.value)}
+                  style={{ fontSize: '0.75rem', color: '#6b7280', background: 'transparent', border: 'none', fontWeight: 'bold' }}
+                >
+                  <option value="1">Season 1</option>
+                  <option value="2">Season 2</option>
+                </select>
               </p>
             </div>
           </div>
@@ -814,9 +852,9 @@ function AppContent() {
         {activeTab === 'standings' ? (
           <StandingsTable poolA={standings.poolA} poolB={standings.poolB} poolAComplete={poolAComplete} poolBComplete={poolBComplete} />
         ) : activeTab === 'matches' ? (
-          <MatchesList matches={matches} isAdmin={isAdmin} onUpdateMatch={updateMatch} />
+          <MatchesList matches={matches} isAdmin={isAdmin} editable={editable} onUpdateMatch={updateMatch} teams={teams} />
         ) : (
-          <KnockoutMatches knockoutMatches={knockoutMatches} isAdmin={isAdmin} onUpdateMatch={updateKnockoutMatch} />
+          <KnockoutMatches knockoutMatches={knockoutMatches} isAdmin={isAdmin} editable={editable} onUpdateMatch={updateKnockoutMatch} />
         )}
       </main>
 

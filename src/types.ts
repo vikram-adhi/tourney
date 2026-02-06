@@ -1,7 +1,31 @@
+// Team info structure for each season
+export interface TeamInfo {
+  name: string;
+  pool: 'A' | 'B';
+  players: string[];
+}
 // Core tournament data types
 export type TeamName = 
   | "Lord of the strings" | "The BaddyVerse" | "Silicon Swat" | "Herricanes"
   | "Rising Phoenix" | "Mighty Spartans" | "Racket Blitz" | "SmashOps";
+
+// Season 2 legacy placeholder team names (kept for backward compatibility / migration)
+export type SeasonTeamName =
+  | 'Team 1' | 'Team 2' | 'Team 3' | 'Team 4'
+  | 'Team 5' | 'Team 6' | 'Team 7' | 'Team 8';
+
+// Season 2 real team names
+export type Season2TeamName =
+  | 'BaddyVerse'
+  | 'Vortex Tamers'
+  | 'Vortex Smashers'
+  | 'Silicon Smashers'
+  | 'Ninja Bandits 🥷'
+  | 'Spear Smashers'
+  | 'Elite Smashers'
+  | 'SoS';
+
+export type AnyTeamName = TeamName | SeasonTeamName | Season2TeamName;
 
 export type Category = 
   | "Men's Singles 1"
@@ -23,8 +47,8 @@ export interface CategoryScore {
 
 export interface Match {
   id: string;
-  teamA: TeamName;
-  teamB: TeamName;
+  teamA: AnyTeamName;
+  teamB: AnyTeamName;
   pool: "A" | "B";
   scores: CategoryScore[];
   tieBreaker?: {
@@ -37,8 +61,8 @@ export interface Match {
 
 export interface KnockoutMatch {
   id: string;
-  teamA: TeamName | "TBD";
-  teamB: TeamName | "TBD";
+  teamA: AnyTeamName | "TBD";
+  teamB: AnyTeamName | "TBD";
   type: "semi" | "final";
   scores: CategoryScore[];
   tieBreaker?: {
@@ -50,7 +74,7 @@ export interface KnockoutMatch {
 }
 
 export interface Standing {
-  team: TeamName;
+  team: AnyTeamName;
   wins: number;
   losses: number;
   points: number;
@@ -61,7 +85,7 @@ export interface Standing {
 }
 
 // Team players data
-export const TEAM_PLAYERS: Record<TeamName, string[]> = {
+export const TEAM_PLAYERS: Partial<Record<AnyTeamName, string[]>> = {
   "Lord of the strings": ["Prajwal S", "Ananya", "Nithish B M", "Mohanraj", "Karthik", "Pratham Pote", "Anika"],
   "The BaddyVerse": ["Chaitanya", "Amrutha", "Manu", "Shreeharsha", "Shashikumar", "Abhishek", "Garima"],
   "Silicon Swat": ["Nithin P", "Kiruthika", "Arya", "Hari Siva Shankar", "Alex", "Vikrant"],
@@ -69,7 +93,27 @@ export const TEAM_PLAYERS: Record<TeamName, string[]> = {
   "Rising Phoenix": ["Aman", "Deepika", "Ramanan", "Chirag", "Prajwal P", "Kingsly"],
   "Mighty Spartans": ["Nithin Bhaskar", "Rubini", "Preetham", "Mithun", "Nattu", "Shiva"],
   "Racket Blitz": ["Ninad", "Divya", "Suresh", "Srujan", "Aditya", "Nikhila"],
-  "SmashOps": ["Ajay", "Lakshitha", "Shreesha", "Ganesh", "Aswin", "Vipin"]
+  "SmashOps": ["Ajay", "Lakshitha", "Shreesha", "Ganesh", "Aswin", "Vipin"],
+
+  // Season 2 roster (new names)
+  "BaddyVerse": ["Chaitanya", "Amrutha", "Kishore", "Shashi", "Mahesh", "Manjunath", "Tanu"],
+  "Vortex Tamers": ["Preetham", "Anika", "Ramkumar", "Somnath", "Shekar", "Aditya"],
+  "Vortex Smashers": ["Shreesha", "Deepika", "Manu", "Vipin", "Kiran", "Prince", "Navya"],
+  "Silicon Smashers": ["Anoohya", "Udhay", "Manish", "Ganesh", "Mithun", "Nattu", "Hari"],
+  "Ninja Bandits 🥷": ["Nithin Bhaskar", "Sreeharsha", "Nithish BM", "Sachu", "Aswin", "Abhishek N C", "Bhavya"],
+  "Spear Smashers": ["Nithin P", "Palanisami", "Mohan", "Sukesh", "Prasanna", "Alex", "Garima"],
+  "Elite Smashers": ["Ajay", "Vikram", "Naseer", "Khalid", "Harshavardhan", "Andrew", "Divya"],
+  "SoS": ["Lakshitha", "Suresh", "Srujan", "Jashwanth", "Abhishek", "Vikrant"],
+
+  // Season 2 legacy keys (Team 1..Team 8) kept as fallback for old rows
+  "Team 1": ["Chaitanya", "Amrutha", "Kishore", "Shashi", "Mahesh", "Manjunath", "Tanu"],
+  "Team 2": ["Nithin Bhaskar", "Sreeharsha", "Nithish BM", "Sachu", "Aswin", "Abhishek N C", "Bhavya"],
+  "Team 3": ["Nithin P", "Palanisami", "Mohan", "Sukesh", "Prasanna", "Alex", "Garima"],
+  "Team 4": ["Preetham", "Anika", "Ramkumar", "Somnath", "Shekar", "Aditya"],
+  "Team 5": ["Ajay", "Vikram", "Naseer", "Khalid", "Harshavardhan", "Andrew", "Divya"],
+  "Team 6": ["Shreesha", "Deepika", "Manu", "Vipin", "Kiran", "Prince", "Navya"],
+  "Team 7": ["Lakshitha", "Suresh", "Srujan", "Jashwanth", "Abhishek", "Vikrant"],
+  "Team 8": ["Anoohya", "Udhay", "Manish", "Ganesh", "Mithun", "Nattu", "Hari"]
 };
 
 export const CATEGORIES: Category[] = [
@@ -162,22 +206,26 @@ export function generateAllMatches(): Match[] {
 }
 
 // Calculate standings from matches
-export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB: Standing[] } {
-  const standings: Partial<Record<TeamName, Standing>> = {};
+export function calculateStandings(
+  matches: Match[],
+  poolATeams: readonly AnyTeamName[] = POOL_A_TEAMS,
+  poolBTeams: readonly AnyTeamName[] = POOL_B_TEAMS
+): { poolA: Standing[]; poolB: Standing[] } {
+  const standings: Partial<Record<AnyTeamName, Standing>> = {};
   
   // Initialize all teams
-  [...POOL_A_TEAMS, ...POOL_B_TEAMS].forEach(team => {
+  [...poolATeams, ...poolBTeams].forEach(team => {
     standings[team] = { team, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
   });
 
-  // Also initialize any team names that appear in matches but are not in the POOL lists
+  // Also initialize any team names that appear in matches but are not in the pool lists
   matches.forEach(m => {
     if (m.teamA && !(m.teamA in standings)) {
       // cast because loaded matches may contain earlier team strings that match TeamName at runtime
-      (standings as any)[m.teamA] = { team: m.teamA as TeamName, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+      (standings as any)[m.teamA] = { team: m.teamA as AnyTeamName, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
     }
     if (m.teamB && !(m.teamB in standings)) {
-      (standings as any)[m.teamB] = { team: m.teamB as TeamName, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
+      (standings as any)[m.teamB] = { team: m.teamB as AnyTeamName, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 };
     }
   });
   
@@ -275,8 +323,8 @@ export function calculateStandings(matches: Match[]): { poolA: Standing[]; poolB
   
   // Build arrays for each pool and sort according to qualification criteria so the
   // UI points table updates order immediately when scores change.
-  const poolA = POOL_A_TEAMS.map(team => standings[team]!);
-  const poolB = POOL_B_TEAMS.map(team => standings[team]!);
+  const poolA = poolATeams.map(team => standings[team] ?? { team, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 });
+  const poolB = poolBTeams.map(team => standings[team] ?? { team, wins: 0, losses: 0, points: 0, eventsWonInVictories: 0, pointsInVictories: 0 });
 
   function sortForDisplay(pool: Standing[]) {
     return [...pool].sort((a, b) => {
@@ -322,8 +370,8 @@ export function arePoolMatchesComplete(matches: Match[], pool: "A" | "B"): boole
 
 // Get top 2 teams from each pool based on standings
 export function getQualifiedTeams(standings: { poolA: Standing[]; poolB: Standing[] }): {
-  poolATop2: [TeamName, TeamName];
-  poolBTop2: [TeamName, TeamName];
+  poolATop2: [AnyTeamName, AnyTeamName];
+  poolBTop2: [AnyTeamName, AnyTeamName];
 } {
   // Deterministic sort for qualification:
   // 1) points desc
@@ -376,8 +424,8 @@ export function getQualifiedTeams(standings: { poolA: Standing[]; poolB: Standin
 
 // Generate knockout matches
 export function generateKnockoutMatches(
-  poolATop2: [TeamName | "TBD", TeamName | "TBD"], 
-  poolBTop2: [TeamName | "TBD", TeamName | "TBD"]
+  poolATop2: [AnyTeamName | "TBD", AnyTeamName | "TBD"], 
+  poolBTop2: [AnyTeamName | "TBD", AnyTeamName | "TBD"]
 ): KnockoutMatch[] {
   return [
     {

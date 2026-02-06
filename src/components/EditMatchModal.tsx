@@ -1,14 +1,15 @@
 import { useState } from 'react';
-import type { Match, CategoryScore } from '../types';
+import type { Match, CategoryScore, TeamInfo } from '../types';
 import { CATEGORIES, TEAM_PLAYERS, isDoublesCategory, getCategoryAbbreviation } from '../types';
 
 interface EditMatchModalProps {
   match: Match;
+  teams?: TeamInfo[];
   onClose: () => void;
   onSave: (scores: Match['scores'], tieBreaker?: Match['tieBreaker']) => void;
 }
 
-export default function EditMatchModal({ match, onClose, onSave }: EditMatchModalProps) {
+export default function EditMatchModal({ match, teams, onClose, onSave }: EditMatchModalProps) {
   const [scores, setScores] = useState<CategoryScore[]>(match.scores);
   const [tieBreaker, setTieBreaker] = useState<NonNullable<Match['tieBreaker']>>(() => {
     return (
@@ -37,6 +38,13 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
       };
     }
     setScores(newScores);
+  };
+
+  const getPlayersForTeam = (teamName: string | undefined) => {
+    if (!teamName) return [];
+    const rosterPlayers = teams?.find(t => t.name === teamName)?.players;
+    if (Array.isArray(rosterPlayers) && rosterPlayers.length > 0) return rosterPlayers;
+    return (TEAM_PLAYERS as any)[teamName] ?? [];
   };
 
   // compute tie condition once and reuse it (used by JSX and save logic)
@@ -166,7 +174,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       }}
                     >
                       <option value="">{isDoubles ? "Select Player 1" : "Select Player"}</option>
-                      {TEAM_PLAYERS[match.teamA]?.map((player) => (
+                      {getPlayersForTeam(match.teamA as any)?.map((player: string) => (
                         <option key={player} value={player}>
                           {player}
                         </option>
@@ -194,7 +202,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                             }}
                         >
                           <option value="">Select Player 2</option>
-                          {TEAM_PLAYERS[match.teamA]?.map((player) => (
+                          {getPlayersForTeam(match.teamA as any)?.map((player: string) => (
                             <option key={player} value={player}>
                               {player}
                             </option>
@@ -260,7 +268,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       }}
                     >
                       <option value="">{isDoubles ? "Select Player 1" : "Select Player"}</option>
-                      {TEAM_PLAYERS[match.teamB]?.map((player) => (
+                      {getPlayersForTeam(match.teamB as any)?.map((player: string) => (
                         <option key={player} value={player}>
                           {player}
                         </option>
@@ -288,7 +296,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                             }}
                         >
                           <option value="">Select Player 2</option>
-                          {TEAM_PLAYERS[match.teamB]?.map((player) => (
+                          {getPlayersForTeam(match.teamB as any)?.map((player: string) => (
                             <option key={player} value={player}>
                               {player}
                             </option>
@@ -350,7 +358,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       }}
                     >
                       <option value="">Select Player</option>
-                      {TEAM_PLAYERS[match.teamA]?.map(p => <option key={p} value={p}>{p}</option>)}
+                      {getPlayersForTeam(match.teamA as any)?.map((p: string) => <option key={p} value={p}>{p}</option>)}
                     </select>
                   ))}
                 </div>
@@ -387,7 +395,7 @@ export default function EditMatchModal({ match, onClose, onSave }: EditMatchModa
                       }}
                     >
                       <option value="">Select Player</option>
-                      {TEAM_PLAYERS[match.teamB]?.map(p => <option key={p} value={p}>{p}</option>)}
+                      {getPlayersForTeam(match.teamB as any)?.map((p: string) => <option key={p} value={p}>{p}</option>)}
                     </select>
                   ))}
                 </div>

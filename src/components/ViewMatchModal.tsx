@@ -64,7 +64,7 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
                   ))}
                 </div>
 
-                <div className="vm-vs" style={{ fontWeight: 500, color: '#374151', textAlign: 'center' }}>vs</div>
+                <div className="vm-vs" style={{ fontWeight: 700, color: '#2563eb', textAlign: 'center' }}>vs</div>
 
                 <div style={{ textAlign: 'left' }}>
                   {rightPlayers.map((p, i) => (
@@ -132,7 +132,9 @@ export default function ViewMatchModal({ match, onClose }: ViewMatchModalProps) 
           }}
         >
           <h2 style={{ margin: 0, fontSize: '0.9rem', fontWeight: 600, flex: 1, marginRight: '0.5rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-            {match.teamA} vs {match.teamB}
+            <span>{match.teamA}</span>
+            <span style={{ margin: '0 0.35rem', color: '#2563eb', fontWeight: 700 }}>vs</span>
+            <span>{match.teamB}</span>
           </h2>
           <button
             onClick={onClose}
