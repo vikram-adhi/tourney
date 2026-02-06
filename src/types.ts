@@ -23,7 +23,7 @@ export type Season2TeamName =
   | 'Ninja Bandits 🥷'
   | 'Spear Smashers'
   | 'Elite Smashers'
-  | 'SoS';
+  | 'Shuttle Strikers';
 
 export type AnyTeamName = TeamName | SeasonTeamName | Season2TeamName;
 
@@ -103,7 +103,7 @@ export const TEAM_PLAYERS: Partial<Record<AnyTeamName, string[]>> = {
   "Ninja Bandits 🥷": ["Nithin Bhaskar", "Sreeharsha", "Nithish BM", "Sachu", "Aswin", "Abhishek N C", "Bhavya"],
   "Spear Smashers": ["Nithin P", "Palanisami", "Mohan", "Sukesh", "Prasanna", "Alex", "Garima"],
   "Elite Smashers": ["Ajay", "Vikram", "Naseer", "Khalid", "Harshavardhan", "Andrew", "Divya"],
-  "SoS": ["Lakshitha", "Suresh", "Srujan", "Jashwanth", "Abhishek", "Vikrant"],
+  "Shuttle Strikers": ["Lakshitha", "Suresh", "Srujan", "Jashwanth", "Abhishek", "Vikrant"],
 
   // Season 2 legacy keys (Team 1..Team 8) kept as fallback for old rows
   "Team 1": ["Chaitanya", "Amrutha", "Kishore", "Shashi", "Mahesh", "Manjunath", "Tanu"],

@@ -23,15 +23,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Simple in-app login (client-side). This intentionally uses a hardcoded
   // username/password so the app does not depend on Netlify functions or
   // environment variables during local development. Username/password:
-  //   admin_RRBT / hpeblr
+  //   admin_RRBT02 / hpeblr
   // NOTE: This is less secure than server-side auth. If you later deploy to
   // production and want to protect admin access, replace this with a server
   // validation flow.
   // Support two client-side accounts:
-  // - admin_RRBT / hpeblr  (regular admin)
+  // - admin_RRBT02 / hpeblr  (regular admin)
   // - superadmin_RRBT / hpeblr  (super admin with extra reset powers)
   const VALID_USERS: Record<string, string> = {
-    admin_RRBT: 'hpeblr',
+    admin_RRBT02: 'hpeblr',
     superadmin_RRBT: 'hpeblr'
   };
 

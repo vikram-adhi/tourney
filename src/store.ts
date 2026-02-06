@@ -33,7 +33,7 @@ class TournamentStore {
     { name: 'Ninja Bandits 🥷', pool: 'B', players: ['Nithin Bhaskar', 'Sreeharsha', 'Nithish BM', 'Sachu', 'Aswin', 'Abhishek N C', 'Bhavya'] },
     { name: 'Spear Smashers', pool: 'B', players: ['Nithin P', 'Palanisami', 'Mohan', 'Sukesh', 'Prasanna', 'Alex', 'Garima'] },
     { name: 'Elite Smashers', pool: 'B', players: ['Ajay', 'Vikram', 'Naseer', 'Khalid', 'Harshavardhan', 'Andrew', 'Divya'] },
-    { name: 'SoS', pool: 'B', players: ['Lakshitha', 'Suresh', 'Srujan', 'Jashwanth', 'Abhishek', 'Vikrant'] },
+    { name: 'Shuttle Strikers', pool: 'B', players: ['Lakshitha', 'Suresh', 'Srujan', 'Jashwanth', 'Abhishek', 'Vikrant'] },
   ];
 
   private static readonly SEASON2_NAME_MAP: Record<string, string> = {
@@ -44,7 +44,8 @@ class TournamentStore {
     'Team 2': 'Ninja Bandits 🥷',
     'Team 3': 'Spear Smashers',
     'Team 5': 'Elite Smashers',
-    'Team 7': 'SoS',
+    'Team 7': 'Shuttle Strikers',
+    'SoS': 'Shuttle Strikers',
   };
 
   private season: '1' | '2' = '2';
